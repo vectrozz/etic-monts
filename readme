@@ -1,0 +1,55 @@
+##############################################################################################
+## Save Database ##
+##############################################################################################
+
+#-------------backup.sh file ----------#
+
+#!/bin/bash
+
+BACKUP_DIR=/home/postgres-backups
+DB_CONTAINER=db-postgres-db_1
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BACKUP_FILE=$BACKUP_DIR/db_backup_$TIMESTAMP.sql
+
+mkdir -p $BACKUP_DIR
+
+docker exec $DB_CONTAINER pg_dump -U eticmont eticmont > $BACKUP_FILE
+
+echo "Backup completed: $BACKUP_FILE"
+
+
+# ------------- set crontab to execute backup.sh every day at midnight------------#
+crontab -e
+
+0 0 * * * /path/to/backup.sh
+
+#-------------- Mount a volume in docker for bakcups-----------------------------------#
+postgres-db:
+  image: postgres:17
+  environment:
+    POSTGRES_USER: "eticmont"
+    POSTGRES_PASSWORD: "eticmont"
+    POSTGRES_DB: "eticmont"
+  volumes:
+    - "/home/postgres-data:/var/lib/postgresql/data"
+    - "/home/postgres-backups:/backups"
+
+
+##############################################################################################
+## Restaure Database ##
+##############################################################################################
+
+#Pour restaurer une base depuis un dump SQL généré par pg_dump :
+
+#   1 - Supprimez la base de données existante (optionnel si vous recréez une base vierge) :
+
+    DROP DATABASE eticmont;
+
+#   2 - Créez une nouvelle base vide :
+
+    CREATE DATABASE eticmont;
+
+#   3 - Restaurez la base à l'aide de psql :
+
+    docker exec -i $DB_CONTAINER psql -U eticmont -d eticmont < $BACKUP_FILE
+

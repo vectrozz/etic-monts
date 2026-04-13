@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Fiche Ferme — Etic'Monts{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Fiche résumé</h1>
+    {% if ferme|length > 0 %}
+    <p class="subtitle">Ferme <strong>{{ ferme[0][1] }}</strong> — {{ ferme[0][2] }}</p>
+    <span class="farm-badge">Membre EMB depuis {{ ferme[0][3] }}</span>
+    {% endif %}
+</div>
+
+<!-- Section Tabs -->
+<div class="section-tabs">
+    <button class="section-tab active" onclick="showSection('surface')">Surface</button>
+    <button class="section-tab" onclick="showSection('biodiv')">Biodiversité</button>
+    <button class="section-tab" onclick="showSection('plastique')">Plastique</button>
+    <button class="section-tab" onclick="showSection('soil')">Sol</button>
+    <button class="section-tab" onclick="showSection('water')">Eau</button>
+    <button class="section-tab" onclick="showSection('lutte')">Lutte intégrée</button>
+    <button class="section-tab" onclick="showSection('charts')">Graphiques</button>
+</div>
+
+<!-- ===== SURFACE ===== -->
+<div class="data-section active" id="section-surface">
+<div class="card">
+    <div class="card-header"><h2>Surfaces (ha)</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th class="row-label">Champ</th>{% for row in surfaces %}<th>{{ row[1] }}</th>{% endfor %}</tr>
+            <tr class="row-total"><td class="row-label"><strong>Surface Totale</strong></td>{% for row in surfaces %}<td><strong>{{ row[2] }}</strong></td>{% endfor %}</tr>
+            <tr><td class="row-label">Fruits Rouges / PPAM</td>{% for row in surfaces %}<td>{{ row[3] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Gros Fruits</td>{% for row in surfaces %}<td>{{ row[4] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Légumes</td>{% for row in surfaces %}<td>{{ row[5] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Prairies Permanentes</td>{% for row in surfaces %}<td>{{ row[6] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Cultures & Prairies Temp.</td>{% for row in surfaces %}<td>{{ row[7] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Autres</td>{% for row in surfaces %}<td>{{ row[8] }}</td>{% endfor %}</tr>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ===== BIODIV ===== -->
+<div class="data-section" id="section-biodiv">
+<div class="card">
+    <div class="card-header"><h2>Biodiversité (IAE)</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th class="row-label">Champ</th>{% for row in biodiv %}<th>{{ row[1] }}</th>{% endfor %}</tr>
+            <tr><td class="row-label">Haies [m]</td>{% for row in biodiv %}<td>{{ row[2] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Arbres alignés [m]</td>{% for row in biodiv %}<td>{{ row[3] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Arbres isolés</td>{% for row in biodiv %}<td>{{ row[4] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Bosquets [m²]</td>{% for row in biodiv %}<td>{{ row[5] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Mares [m²]</td>{% for row in biodiv %}<td>{{ row[6] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Fossés [m]</td>{% for row in biodiv %}<td>{{ row[7] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Bordures [m]</td>{% for row in biodiv %}<td>{{ row[8] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Jachères [m²]</td>{% for row in biodiv %}<td>{{ row[9] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Jachères mellifères [m²]</td>{% for row in biodiv %}<td>{{ row[10] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Murets [m]</td>{% for row in biodiv %}<td>{{ row[11] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Description</td>{% for row in biodiv %}<td style="white-space:normal;max-width:150px;">{{ row[12] or '' }}</td>{% endfor %}</tr>
+            <tr class="row-total"><td class="row-label"><strong>Biodiv Score</strong></td>{% for row in biodiv %}<td><strong>{{ row[13] }}</strong></td>{% endfor %}</tr>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ===== PLASTIQUE ===== -->
+<div class="data-section" id="section-plastique">
+<div class="card">
+    <div class="card-header"><h2>Limitation Plastique</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th class="row-label">Champ</th>{% for row in plastique %}<th>{{ row[1] }}</th>{% endfor %}</tr>
+            <tr><td class="row-label">Bâches plastique [m²]</td>{% for row in plastique %}<td>{{ row[2] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Toiles tissées [m²]</td>{% for row in plastique %}<td>{{ row[3] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Paillage FR</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[4] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Paillage GF</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[5] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Paillage Légumes</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[6] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Limitation</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[7] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Emb. plastique O/N</td>{% for row in plastique %}<td>{{ row[8] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">% emb. plastique</td>{% for row in plastique %}<td>{{ row[9] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Emb. FR</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[10] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Emb. GF</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[11] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Emb. Légumes</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[12] }}</td>{% endfor %}</tr>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ===== SOL ===== -->
+<div class="data-section" id="section-soil">
+<div class="card">
+    <div class="card-header"><h2>Sol</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th class="row-label">Champ</th>{% for row in soil %}<th>{{ row[1] }}</th>{% endfor %}</tr>
+            <tr><td class="row-label">Analyses sol / MO</td>{% for row in soil %}<td style="white-space:normal;max-width:180px;">{{ row[2] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Connaissance /10</td>{% for row in soil %}<td>{{ row[3] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Formations</td>{% for row in soil %}<td style="white-space:normal;max-width:180px;">{{ row[4] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Pratiques</td>{% for row in soil %}<td style="white-space:normal;max-width:180px;">{{ row[5] }}</td>{% endfor %}</tr>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ===== EAU ===== -->
+<div class="data-section" id="section-water">
+<div class="card">
+    <div class="card-header"><h2>Eau</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th class="row-label">Champ</th>{% for row in water %}<th>{{ row[1] }}</th>{% endfor %}</tr>
+            <tr><td class="row-label">Irrigation FR</td>{% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[2] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Irrigation GF</td>{% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[3] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Irrigation Légumes</td>{% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[4] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Consommation [m³]</td>{% for row in water %}<td>{{ row[5] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Actions</td>{% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[6] }}</td>{% endfor %}</tr>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ===== LUTTE ===== -->
+<div class="data-section" id="section-lutte">
+<div class="card">
+    <div class="card-header"><h2>Lutte intégrée</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th class="row-label">Champ</th>{% for row in lutte %}<th>{{ row[1] }}</th>{% endfor %}</tr>
+            <tr><td class="row-label">Achat</td>{% for row in lutte %}<td style="white-space:normal;max-width:150px;">{{ row[2] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Favorisation</td>{% for row in lutte %}<td style="white-space:normal;max-width:150px;">{{ row[3] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Formation</td>{% for row in lutte %}<td style="white-space:normal;max-width:150px;">{{ row[4] }}</td>{% endfor %}</tr>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ===== CHARTS ===== -->
+<div class="data-section" id="section-charts">
+    <div class="chart-container">
+        <h3>Évolution des surfaces (ha)</h3>
+        <canvas id="surfaceChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3>Évolution du Score Biodiversité</h3>
+        <canvas id="biodivChart"></canvas>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showSection(name) {
+    document.querySelectorAll('.data-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('section-' + name).classList.add('active');
+    event.target.classList.add('active');
+}
+
+Chart.defaults.color = '#8b8f9a';
+Chart.defaults.borderColor = 'rgba(46,49,58,0.5)';
+const chartColors = ['#4ecdc4','#ff6b6b','#ffd93d','#6bcb77','#a66dd4','#f9844a'];
+
+const surfacesData = {{ surfaces|tojson }};
+const biodivData = {{ biodiv|tojson }};
+
+if (surfacesData.length > 0) {
+    new Chart(document.getElementById('surfaceChart'), {
+        type: 'bar',
+        data: {
+            labels: surfacesData.map(r => r[1]),
+            datasets: [
+                {label:'Fruits Rouges', data: surfacesData.map(r=>parseFloat(r[3])||0), backgroundColor:chartColors[0]+'99', borderColor:chartColors[0], borderWidth:1},
+                {label:'Gros Fruits', data: surfacesData.map(r=>parseFloat(r[4])||0), backgroundColor:chartColors[1]+'99', borderColor:chartColors[1], borderWidth:1},
+                {label:'Légumes', data: surfacesData.map(r=>parseFloat(r[5])||0), backgroundColor:chartColors[2]+'99', borderColor:chartColors[2], borderWidth:1},
+                {label:'Prairies', data: surfacesData.map(r=>parseFloat(r[6])||0), backgroundColor:chartColors[3]+'99', borderColor:chartColors[3], borderWidth:1},
+                {label:'Cultures', data: surfacesData.map(r=>parseFloat(r[7])||0), backgroundColor:chartColors[4]+'99', borderColor:chartColors[4], borderWidth:1},
+                {label:'Autres', data: surfacesData.map(r=>parseFloat(r[8])||0), backgroundColor:chartColors[5]+'99', borderColor:chartColors[5], borderWidth:1},
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {legend:{position:'bottom', labels:{boxWidth:12, padding:16, font:{size:11}}}},
+            scales: {x:{stacked:true,grid:{display:false}}, y:{stacked:true,beginAtZero:true,title:{display:true,text:'Hectares'}}}
+        }
+    });
+}
+
+if (biodivData.length > 0) {
+    new Chart(document.getElementById('biodivChart'), {
+        type: 'line',
+        data: {
+            labels: biodivData.map(r => r[1]),
+            datasets: [{
+                label:'Biodiv Score', data:biodivData.map(r=>parseFloat(r[13])||0),
+                borderColor:'#4ecdc4', backgroundColor:'rgba(78,205,196,0.15)', fill:true, tension:0.3, pointRadius:5, pointBackgroundColor:'#4ecdc4'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {legend:{position:'bottom', labels:{boxWidth:12, padding:16, font:{size:11}}}},
+            scales: {y:{beginAtZero:true, title:{display:true,text:'Score'}}}
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <h1>ADMIN ZONE ! {{ username }} fait attention à ce que tu fais. ;-P </h1>
+    <a href="{{url_for('logout')}}">Logout</a>
+
+
+
+    <table>
+        <tr>
+            <td>ID</td>
+            <td>Name</td>
+            <td>Member since</td>
+            <td>Last login</td>
+        </tr>
+        <tr>
+            <td>{{user_id}}</td>
+            <td>{{username}}</td>
+            <td>{{created_date}}</td>
+            <td>{{last_login_date}}</td>
+        </tr>
+    </table>
+
+    <h2>Coefficient d'equivalence IAE - Biodiversité</h1>
+        <table id="coefbiodiv">
+            <tr>
+                <td>ID</td>
+                <td>année</td>
+                <td>coefhaie</td>
+                <td>coefarbrealign</td>
+                <td>coefarbreseul</td>
+                <td>coefbosquet</td>
+                <td>coefmare</td>
+                <td>coeffosse</td>
+                <td>coefbordure</td>
+                <td>coefjachere</td>
+                <td>coefjacheremel</td>
+                <td>coefmuret</td>
+                <td>SUPPR</td>
+
+
+                year INTEGER CHECK (year >= 2010 AND year <= 2100),
+                coefhaie DECIMAL(10, 4),
+                coefarbrealign DECIMAL(10, 4),
+                coefarbreseul DECIMAL(10, 4),
+                coefbosquet DECIMAL(10, 4),
+                coefmare DECIMAL(10, 4),
+                coeffosse DECIMAL(10, 4),
+                coefbordure DECIMAL(10, 4),
+                coefjachere DECIMAL(10, 4),
+                coefjacheremel DECIMAL(10, 4),
+                coefmuret DECIMAL(10, 4),
+
+            </tr>
+            <tbody>
+                {% for row in surfaces %}
+                <tr>
+                    <td>{{ row[0] }}</td> <!-- id -->
+                    <td>{{ row[1] }}</td> <!-- year -->
+                    <td>{{ row[2] }}</td> <!-- surface -->
+                    <td>{{ row[3] }}</td> <!-- forest -->
+                    <td>{{ row[4] }}</td> <!-- hedge -->
+                    <td>{{ row[5] }}</td> <!-- bramble -->
+                    <td>{{ row[6] }}</td> <!-- pond -->
+                    <td>{{ row[7] }}</td> 
+                    <td>{{ row[8] }}</td> 
+                    <td>{{ row[9] }}</td> 
+                    <td>{{ row[10] }}</td> 
+                    <td>{{ row[11] }}</td> 
+                    <td>{{ row[12] }}</td> 
+                    <td><a href="{{ url_for('deletesurf', idtodel=row[0]) }}" onclick="return confirm('Voulez-vous vraiment supprimer cette ligne ?');">SUPPR</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tr>
+                <form action="{{ url_for('addsurf') }}" method="POST">
+                    <td><h2>-</h2></td>
+                    <td><input type="number" id="year" name="year" min="2010" max="2100" step="1" required oninput="this.value = this.value.replace(/[^0-9]/g, '')" ></td>
+                    <td><input type="number" id="surface" name="surface" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="foret" name="foret" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="haie" name="haie" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="roncier" name="roncier" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="mare" name="mare" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="coursdeau" name="coursdeau" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="tasdebois" name="tasdebois" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="murets" name="murets" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="surfnontondue" name="surfnontondue" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="surfnontravaillee" name="surfnontravaillee" step="0.0001" min="0" required ></td>
+                    <td><input type="text" id="commentaire" name="commentaire" ></td>
+                    <td><button type="submit">ajouter surface</button></td>
+                </form>
+
+            </tr>
+        </table>
+
+
+    <h2>Sol</h1>
+    <table id="soil">
+        <tr>
+            <td>id</td>
+            <td>année</td>
+            <td>Connaissance sol</td>
+            <td>Gestion taux humus</td>
+            <td>Vie microbienne</td>
+            <td>Rotation repos</td>
+            <td>Pratique agronomiques</td>
+            <td>Commentaire</td>
+        </tr>
+        <tbody>
+            {% for row in soils %}
+            <tr>
+                <td>{{ row[0] }}</td> <!-- id -->
+                <td>{{ row[1] }}</td> <!-- year -->
+                <td>{{ row[2] }}</td> <!-- surface -->
+                <td>{{ row[3] }}</td> <!-- forest -->
+                <td>{{ row[4] }}</td> <!-- hedge -->
+                <td>{{ row[5] }}</td> <!-- bramble -->
+                <td>{{ row[6] }}</td> <!-- pond -->
+                <td>{{ row[7] }}</td> 
+                <td><a href="{{ url_for('deletesoil', idtodel=row[0]) }}" onclick="return confirm('Voulez-vous vraiment supprimer cette ligne ?');">SUPPR</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tr>
+        <tr>
+            <form action="{{ url_for('addsoil') }}" method="POST">
+                <td><h2>-</h2></td>
+                <td><input type="number" id="year" name="year" min="2010" max="2100" step="1" required oninput="this.value = this.value.replace(/[^0-9]/g, '')" ></td>
+                <td><input type="text" id="knowledge" name="knowledge" required></td>
+                <td><input type="text" id="humus" name="humus" required></td>
+                <td><input type="text" id="microbio" name="microbio" required></td>
+                <td><input type="text" id="rotation" name="rotation" required></td>
+                <td><input type="text" id="farming_practice" name="farming_practice" required></td>
+                <td><input type="text" id="commentaire" name="commentaire" required></td>
+                <td><button type="submit">ajouter données sol</button></td>
+            </form>
+
+        </tr>
+
+
+
+    </table>
+
+    <h2>Eau</h1>
+        <table id="water">
+            <tr>
+                <td>id</td>
+                <td>année</td>
+                <td>pluvio</td>
+                <td>conso totale</td>
+                <td>conso par kg produit</td>
+                <td>retention des sols</td>
+                <td>arrosage veg</td>
+                <td>arrosage prod</td>
+                <td>materiel</td>
+                <td>fuite</td>
+                <td>outils de pilotage</td>
+                <td>actions</td>
+                <td>Commentaire</td>
+            </tr>
+            <tbody>
+                {% for row in water %}
+                <tr>
+                    <td>{{ row[0] }}</td> <!-- id -->
+                    <td>{{ row[1] }}</td> <!-- year -->
+                    <td>{{ row[2] }}</td> <!-- surface -->
+                    <td>{{ row[3] }}</td> <!-- forest -->
+                    <td>{{ row[4] }}</td> <!-- hedge -->
+                    <td>{{ row[5] }}</td> <!-- bramble -->
+                    <td>{{ row[6] }}</td> <!-- pond -->
+                    <td>{{ row[7] }}</td> 
+                    <td>{{ row[8] }}</td> 
+                    <td>{{ row[9] }}</td> 
+                    <td>{{ row[10] }}</td> 
+                    <td>{{ row[11] }}</td> 
+                    <td>{{ row[12] }}</td> 
+                    <td><a href="{{ url_for('deletewater', idtodel=row[0]) }}" onclick="return confirm('Voulez-vous vraiment supprimer cette ligne ?');">SUPPR</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tr>
+                <form action="{{ url_for('addwater') }}" method="POST">
+                    <td><h2>-</h2></td>
+                    <td><input type="number" id="year" name="year" min="2010" max="2100" step="1" required oninput="this.value = this.value.replace(/[^0-9]/g, '')" ></td>
+                    <td><input type="number" id="pluvio" name="pluvio" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="total_conso" name="total_conso" step="0.0001" min="0" required></td>
+                    <td><input type="number" id="conso_par_kg" name="conso_par_kg" step="0.0001" min="0" required></td>
+                    <td><input type="text" id="retention" name="retention" required></td>
+                    <td><input type="text" id="arr_veg" name="arr_veg" required></td>
+                    <td><input type="text" id="arr_prod" name="arr_prod" required></td>
+                    <td><input type="text" id="materiel" name="materiel" required></td>
+                    <td><input type="text" id="fuite" name="fuite" required></td>
+                    <td><input type="text" id="pilotage" name="pilotage" required></td>
+                    <td><input type="text" id="actions" name="actions" required></td>
+                    <td><input type="text" id="commentaire" name="commentaire" ></td>
+                    <td><button type="submit">ajouter données eau</button></td>
+                </form>
+
+            </tr>
+        </table>
+
+        <h2>Intrants</h1>
+            <table id="intrants">
+                <tr>
+                    <td>-_-</td>
+                    <td>-_-</td>
+                    <td>-_-</td>
+                    <td>-_-</td>
+                </tr>
+                <tr>
+                    <td>eticmonts</td>
+                    <td>-_-</td>
+                    <td>-_-</td>
+                    <td>eticmonts</td>
+                </tr>
+            </table>
+
+            <h2>Luttes</h1>
+                <table id="luttes">
+                    <tr>
+                        <td>-_-</td>
+                        <td>-_-</td>
+                        <td>-_-</td>
+                        <td>-_-</td>
+                    </tr>
+                    <tr>
+                        <td>eticmonts</td>
+                        <td>-_-</td>
+                        <td>-_-</td>
+                        <td>eticmonts</td>
+                    </tr>
+                </table>
+
+
+
+                <h2>Graphique des surfaces par année</h2>
+                <canvas id="surfaceChart" width="300" height="100"></canvas>
+                
+                <script>
+                    // Récupération des données depuis le tableau HTML
+                    const rows = document.querySelectorAll("#surface tbody tr");
+                    const years = [];
+                    const surfaces = [];
+                    const forets = [];
+        
+                    rows.forEach(row => {
+                        const cells = row.querySelectorAll("td");
+                        years.push(cells[1].textContent);  // 1ere colonne = année
+                        surfaces.push(parseFloat(cells[2].textContent));  // 2eme colonne = surfac
+                        forets.push(parseFloat(cells[3].textContent));  // 2eme colonne = surfac
+                    });
+                
+                    // Créer le graphique avec Chart.js
+                    const ctx = document.getElementById('surfaceChart').getContext('2d');
+                    const surfaceChart = new Chart(ctx, {
+                        type: 'line',  // Type de graphique (ici un graphique en ligne)
+                        data: {
+                            labels: years,  // Les années extraites
+                            datasets: [
+                                {
+                                label: 'Surface Totale',
+                                data: surfaces,  // Les surfaces extraites
+                                borderColor: 'rgba(0, 116, 78, 1)',  // Couleur de la ligne
+                                backgroundColor: 'rgba(0, 116, 78, 0.2)',  // Couleur de fond de la ligne
+                                borderWidth: 2,
+                                fill: true,  // Remplissage sous la courbe
+                                yAxisID: 'y'
+                                },
+                                {
+                                label: 'Forêts',
+                                data: forets,  // Les surfaces extraites
+                                borderColor: 'rgba(0, 0, 78, 1)',  // Couleur de la ligne
+                                backgroundColor: 'rgba(0, 100, 78, 0.2)',  // Couleur de fond de la ligne
+                                borderWidth: 2,
+                                fill: true,  // Remplissage sous la courbe
+                                yAxisID: 'y1'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Année'
+                                    }
+                                },
+                                y: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'left',
+                                    title: {
+                                        display: true,
+                                        text: 'Surface (ha)'
+                                    },
+                                    beginAtZero: true // Axe pour "Surface Totale"
+                                },
+                                y1: {
+                                    type: 'linear',
+                                    display: true,
+                                    position: 'right',
+                                    title: {
+                                        display: true,
+                                        text: 'Forêts (ha)'
+                                    },
+                                    beginAtZero: true,
+                                    grid: {
+                                        drawOnChartArea: false // Empêche le quadrillage de se superposer
+                                    }
+                                }
+                            }
+                        }
+                    });
+                </script>
+
+                <h3>Créé par vectrozz pour Etic'Monts - 2024 - v0.6</h3>
+
+</body>
+
+</html>

@@ -1,0 +1,209 @@
+/* Style général du body */
+body {
+    font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+    color: #e0e0e0; /* Texte clair */
+    background-color: #1e1e1e; /* Fond sombre */
+    padding: 20px;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* Styles pour les titres */
+h1, h2 {
+    color: #57c09a; /* Vert doux et apaisant */
+    font-weight: 600;
+    margin-bottom: 15px;
+    letter-spacing: 0.02em;
+}
+
+/* Style des tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #2a2a2a; /* Fond des tables */
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4); /* Ombre douce */
+    margin-bottom: 20px;
+}
+
+table th, table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #444; /* Ligne de séparation subtile */
+    text-align: left;
+    font-size: 15px;
+    color: #e0e0e0; /* Texte clair */
+}
+
+table th {
+    background-color: #333; /* Gris foncé pour l'en-tête */
+    color: #57c09a; /* Vert doux */
+    font-weight: 500;
+}
+
+table tbody tr:hover {
+    background-color: #444; /* Gris foncé clair pour le survol */
+}
+
+/* Styles des inputs */
+input[type="number"], input[type="password"], input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid #555; /* Bordure discrète */
+    border-radius: 6px;
+    background-color: #2a2a2a; /* Fond des champs */
+    color: #e0e0e0; /* Texte clair */
+    font-size: 15px;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+input[type="number"]:focus, input[type="password"]:focus, input[type="text"]:focus {
+    border-color: #57c09a;
+    box-shadow: 0 0 0 2px rgba(87, 192, 154, 0.3); /* Contour doux */
+}
+
+/* Style spécifique pour le champ année */
+input#year {
+    width: 120px;
+    text-align: center;
+}
+
+/* Style des boutons */
+.button {
+    display: inline-block;
+    color: #1e1e1e; /* Texte sombre */
+    background-color: #57c09a; /* Vert doux */
+    text-decoration: none;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.button:hover {
+    background-color: #499e85; /* Vert légèrement plus foncé au survol */
+    transform: translateY(-1px);
+}
+
+.button:active {
+    background-color: #3b826c; /* Vert plus sombre au clic */
+    transform: translateY(1px);
+}
+
+/* Boutons secondaires */
+.button.secondary {
+    background-color: #2a2a2a;
+    color: #57c09a;
+    border: 1px solid #57c09a;
+}
+
+.button.secondary:hover {
+    background-color: #444; /* Gris foncé clair */
+    color: #499e85;
+    border-color: #499e85;
+}
+
+/* Style des boutons warning*/
+.button.warning {
+    display: inline-block;
+    color: #1e1e1e; /* Texte sombre */
+    background-color: #e01616ec; /* Vert doux */
+    text-decoration: none;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.button.warning:hover {
+    background-color: #f30f0f38; /* Vert légèrement plus foncé au survol */
+    transform: translateY(-1px);
+}
+
+.button.warning:active {
+    background-color: #3b826c; /* Vert plus sombre au clic */
+    transform: translateY(1px);
+}
+/* Style des messages d'information 
+.alert {
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    border: 1px solid #444;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #e0e0e0;
+    background-color: #2a2a2a;
+}
+
+.alert.success {
+    border-color: #57c09a;
+    background-color: #1f2f2a;
+    color: #57c09a;
+}
+
+.alert.error {
+    border-color: #e74c3c;
+    background-color: #3a2020; 
+    color: #e74c3c;
+}
+
+*/
+/* Styles des alertes */
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.alert-success {
+    background-color: #e6f7ec;
+    border-color: #c3e6cb;
+    color: #2c7a58;
+}
+
+.alert-warning {
+    background-color: #fffbe6;
+    border-color: #ffeeba;
+    color: #856404;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #a94442;
+}
+
+
+/* Table grande */
+.table-large {
+    width: 100%; /* Prend toute la largeur disponible */
+    font-size: 1.2em; /* Texte plus grand */
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+/* Table petite */
+.table-small {
+    width: 50%; /* Prend seulement 50% de la largeur disponible */
+    font-size: 0.9em; /* Texte plus petit */
+    margin: 0 auto; /* Centrée */
+    border-collapse: collapse;
+}
+
+/* Styles communs */
+.table-large td, .table-small td {
+    padding: 10px;
+    border: 1px solid #444;
+    text-align: left;
+}

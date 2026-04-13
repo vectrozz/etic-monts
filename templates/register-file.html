@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Player</title>
+</head>
+<body>
+    <h1>Register Page</h1>
+
+    <h1>Create Player</h1>
+    <form id="playerForm">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required>
+        <br>
+        <label for="userpass">Password:</label>
+        <input type="password" id="userpass" name="userpass" required>
+        <br>
+        <label for="userpass1">Confirm Password:</label>
+        <input type="password" id="userpass1" name="userpass1" required>
+        <br>
+        <button type="submit">Create Player</button>
+    </form>
+
+    <script>
+        document.getElementById('playerForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent form from submitting the traditional way
+            
+            const name = document.getElementById('name').value;
+            const userpass = document.getElementById('userpass').value;
+            const userpass1 = document.getElementById('userpass1').value;
+                    fetch('/api/addplayer', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json',},
+                        body: JSON.stringify({ name, userpass, userpass1 }),
+                       })
+                    .then(response => response.json())
+
+                    })
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Accueil — Etic'Monts{% endblock %}
+
+{% block auth_content %}
+<div class="auth-card">
+    <div class="auth-brand">
+        <h1>Etic'Monts</h1>
+        <p>Base de données MAEC</p>
+    </div>
+    <div class="auth-actions">
+        <a href="{{ url_for('login') }}" class="btn btn-primary">Se connecter</a>
+        <a href="{{ url_for('register') }}" class="btn btn-outline">Créer un compte</a>
+    </div>
+    <footer class="auth-footer">Etic'Monts &mdash; 2026 &mdash; v2.0</footer>
+</div>
+{% endblock %}

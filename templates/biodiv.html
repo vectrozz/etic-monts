@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Biodiversité — Etic'Monts{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Détail Biodiversité</h1>
+    {% if ferme|length > 0 %}
+    <p class="subtitle">Ferme <strong>{{ ferme[0][1] }}</strong> — {{ ferme[0][2] }}</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Inventaire IAE par année</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th class="row-label">Champ</th>{% for row in biodiv %}<th>{{ row[1] }}</th>{% endfor %}</tr>
+            <tr><td class="row-label">Haies [m]</td>{% for row in biodiv %}<td>{{ row[2] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Arbres alignés [m]</td>{% for row in biodiv %}<td>{{ row[3] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Arbres isolés</td>{% for row in biodiv %}<td>{{ row[4] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Bosquets [m²]</td>{% for row in biodiv %}<td>{{ row[5] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Mares [m²]</td>{% for row in biodiv %}<td>{{ row[6] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Fossés [m]</td>{% for row in biodiv %}<td>{{ row[7] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Bordures [m]</td>{% for row in biodiv %}<td>{{ row[8] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Jachères [m²]</td>{% for row in biodiv %}<td>{{ row[9] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Jachères mellifères [m²]</td>{% for row in biodiv %}<td>{{ row[10] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Murets [m]</td>{% for row in biodiv %}<td>{{ row[11] }}</td>{% endfor %}</tr>
+            <tr><td class="row-label">Description</td>{% for row in biodiv %}<td style="white-space:normal;max-width:150px;">{{ row[12] or '' }}</td>{% endfor %}</tr>
+            <tr class="row-total"><td class="row-label"><strong>Biodiv Score</strong></td>{% for row in biodiv %}<td><strong>{{ row[13] }}</strong></td>{% endfor %}</tr>
+        </table>
+    </div>
+</div>
+
+<div class="chart-container">
+    <h3>Évolution du Score Biodiversité</h3>
+    <canvas id="biodivChart"></canvas>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+Chart.defaults.color = '#8b8f9a';
+Chart.defaults.borderColor = 'rgba(46,49,58,0.5)';
+const biodivData = {{ biodiv|tojson }};
+
+if (biodivData.length > 0) {
+    new Chart(document.getElementById('biodivChart'), {
+        type: 'line',
+        data: {
+            labels: biodivData.map(r => r[1]),
+            datasets: [{
+                label: 'Biodiv Score',
+                data: biodivData.map(r => parseFloat(r[13]) || 0),
+                borderColor: '#4ecdc4',
+                backgroundColor: 'rgba(78,205,196,0.15)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 5,
+                pointBackgroundColor: '#4ecdc4'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {legend:{position:'bottom', labels:{boxWidth:12, padding:16, font:{size:11}}}},
+            scales: {y:{beginAtZero:true, title:{display:true, text:'Score'}}}
+        }
+    });
+}
+</script>
+{% endblock %}

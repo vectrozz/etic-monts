@@ -1,0 +1,1214 @@
+from flask import Flask, render_template, url_for, redirect, request, jsonify, session, flash, abort
+import psycopg2
+from psycopg2 import errors
+#from psycopg2.errors import UniqueViolation
+from datetime import datetime, timezone
+#from dotenv import load_dotenv    #dotenv read file .env and set variable as environment variable
+from flask_bcrypt import Bcrypt
+import json
+
+
+
+TABLE_NAME = "fermes" 
+CREATE_PLAYERS_TABLE = (f'''CREATE TABLE IF NOT EXISTS {TABLE_NAME} (id SERIAL PRIMARY KEY, name VARCHAR (20), userpass VARCHAR (100),  farmname VARCHAR (100), adress VARCHAR (100), integration_year VARCHAR (100),created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, last_login_date TIMESTAMP);''')
+DELETE_PLAYERS_TABLE = (f'''DROP TABLE IF EXISTS {TABLE_NAME}''')
+INSERT_PLAYER = (f'''INSERT INTO {TABLE_NAME} (name, userpass) VALUES (%s, %s) RETURNING id, created_date;''')
+PLAYERS_LIST = (f'''SELECT * FROM {TABLE_NAME}''')
+SEARCH_PLAYER = (f'''SELECT id FROM {TABLE_NAME} WHERE name LIKE (%s)''')
+UPDATE_LOGIN_DATE =(f'''UPDATE {TABLE_NAME} SET last_login_date = %s WHERE id = %s''')
+SEARCH_LAST_LOGIN = (f'''SELECT last_login_date FROM {TABLE_NAME} WHERE name LIKE (%s)''')
+SEARCH_CREATED_DATE = (f'''SELECT created_date FROM {TABLE_NAME} WHERE name LIKE (%s)''')
+
+
+CREATE_SURFACE_TABLE = (f'''CREATE TABLE IF NOT EXISTS surface (
+    id SERIAL PRIMARY KEY,
+    linked_id INT REFERENCES {TABLE_NAME}(id) ON DELETE CASCADE,
+    year INTEGER CHECK (year >= 2010 AND year <= 2100),
+    surftot DECIMAL(10, 4),
+    surffr DECIMAL(10, 4),
+    surfgf DECIMAL(10, 4),
+    surfleg DECIMAL(10, 4),
+    prairie DECIMAL(10, 4),
+    culture DECIMAL(10, 4),
+    surfautre DECIMAL(10, 4)
+);''')
+
+CREATE_BIODIV_TABLE = (f'''CREATE TABLE IF NOT EXISTS biodiv (
+    id SERIAL PRIMARY KEY,
+    linked_id INT REFERENCES {TABLE_NAME}(id) ON DELETE CASCADE,
+    year INTEGER CHECK (year >= 2010 AND year <= 2100),
+    haie DECIMAL(10, 4),
+    arbrealign DECIMAL(10, 4),
+    arbreseul DECIMAL(10, 4),
+    bosquet DECIMAL(10, 4),
+    mare DECIMAL(10, 4),
+    fosse DECIMAL(10, 4),
+    bordure DECIMAL(10, 4),
+    jachere DECIMAL(10, 4),
+    jacheremel DECIMAL(10, 4),
+    muret DECIMAL(10, 4),
+    description TEXT,
+    biodivscore DECIMAL(10, 4)
+);''')
+
+CREATE_COEFBIODIV_TABLE = (f'''CREATE TABLE IF NOT EXISTS coefbiodiv (
+    id SERIAL PRIMARY KEY,
+    year INTEGER CHECK (year >= 2010 AND year <= 2100) UNIQUE,
+    coefhaie DECIMAL(10, 4),
+    coefarbrealign DECIMAL(10, 4),
+    coefarbreseul DECIMAL(10, 4),
+    coefbosquet DECIMAL(10, 4),
+    coefmare DECIMAL(10, 4),
+    coeffosse DECIMAL(10, 4),
+    coefbordure DECIMAL(10, 4),
+    coefjachere DECIMAL(10, 4),
+    coefjacheremel DECIMAL(10, 4),
+    coefmuret DECIMAL(10, 4),
+    coefprairie DECIMAL(10, 4),
+    description TEXT
+);''')
+
+CREATE_PLASTIQUE_TABLE = (f'''CREATE TABLE IF NOT EXISTS plastique (
+    id SERIAL PRIMARY KEY,
+    linked_id INT REFERENCES {TABLE_NAME}(id) ON DELETE CASCADE,
+    year INTEGER CHECK (year >= 2010 AND year <= 2100),
+    surftotplast DECIMAL(10, 2),
+    surftottoile DECIMAL(10, 2),
+    paillagefr JSONB,
+    paillagegf JSONB,
+    paillageleg JSONB,
+    limitation JSONB,
+    embplast JSONB,
+    embplastpourcent DECIMAL(5,2) CHECK (embplastpourcent >= 0 AND embplastpourcent <= 100),  
+    embfr JSONB,
+    embgf JSONB,
+    embleg JSONB
+);''')
+
+
+CREATE_SOIL_TABLE = (f'''CREATE TABLE IF NOT EXISTS soil (
+    id SERIAL PRIMARY KEY,
+    linked_id INT REFERENCES {TABLE_NAME}(id) ON DELETE CASCADE,
+    year INTEGER CHECK (year >= 2010 AND year <= 2100),
+    soilanalyse JSONB,
+    connaissance INTEGER CHECK (connaissance >= 0 AND connaissance <= 10),
+    formation JSONB,
+    pratique JSONB
+);''')
+
+CREATE_WATER_TABLE = (f'''CREATE TABLE IF NOT EXISTS water (
+    id SERIAL PRIMARY KEY,
+    linked_id INT REFERENCES {TABLE_NAME}(id) ON DELETE CASCADE,
+    year INTEGER CHECK (year >= 2010 AND year <= 2100),
+    matosirrigfr JSONB,
+    matosirriggf JSONB,
+    matosirrigleg JSONB,
+    consoeau DECIMAL(10, 4),
+    actions JSONB
+);''')
+
+
+CREATE_LUTTE_TABLE = (f'''CREATE TABLE IF NOT EXISTS lutte (
+    id SERIAL PRIMARY KEY,
+    linked_id INT REFERENCES {TABLE_NAME}(id) ON DELETE CASCADE,
+    year INTEGER CHECK (year >= 2010 AND year <= 2100),
+    achat JSONB,
+    favorisation JSONB,
+    formation JSONB
+);''')
+
+
+INSERT_INTO_SURFACE = (f'''INSERT INTO surface (linked_id, year, surftot, surffr, surfgf, surfleg, prairie, culture, surfautre) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;''')
+DELETE_FROM_SURFACE = (f'''DELETE FROM surface WHERE id = (%s);''') #AND year = %s;
+SURFACE_LIST = (f'''SELECT * FROM surface''')
+
+INSERT_INTO_BIODIV = (f'''INSERT INTO biodiv (linked_id, year, haie, arbrealign, arbreseul, bosquet, mare, fosse, bordure, jachere, jacheremel, muret, description, biodivscore) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;''')
+DELETE_FROM_BIODIV = (f'''DELETE FROM biodiv WHERE id = (%s);''') #AND year = %s;
+BIODIV_LIST = (f'''SELECT * FROM biodiv''')
+
+INSERT_INTO_COEFBIODIV = (f'''INSERT INTO coefbiodiv (year, coefhaie, coefarbrealign, coefarbreseul, coefbosquet, coefmare, coeffosse, coefbordure, coefjachere, coefjacheremel, coefmuret, coefprairie, description) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;''')
+DELETE_FROM_COEFBIODIV = (f'''DELETE FROM coefbiodiv WHERE id = (%s);''') #AND year = %s;
+COEFBIODIV_LIST = (f'''SELECT * FROM coefbiodiv''')
+
+INSERT_INTO_PLASTIC = (f'''INSERT INTO plastique (linked_id, year, surftotplast, surftottoile, paillagefr, paillagegf, paillageleg, limitation, embplast, embplastpourcent, embfr, embgf, embleg) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;''')
+DELETE_FROM_PLASTIC = (f'''DELETE FROM plastique WHERE id = (%s);''') #AND year = %s;
+PLASTIC_LIST = (f'''SELECT * FROM plastique''')
+
+INSERT_INTO_SOIL = (f'''INSERT INTO soil (linked_id, year, soilanalyse, connaissance, formation, pratique) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;''')
+DELETE_FROM_SOIL = (f'''DELETE FROM soil WHERE id = (%s);''') #AND year = %s;
+SOIL_LIST = (f'''SELECT * FROM soil''')
+
+INSERT_INTO_WATER = (f'''INSERT INTO water (linked_id, year, matosirrigfr, matosirriggf, matosirrigleg, consoeau, actions) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id;''')
+DELETE_FROM_WATER = (f'''DELETE FROM water WHERE id = (%s);''') #AND year = %s;
+WATER_LIST = (f'''SELECT * FROM water''')
+
+INSERT_INTO_LUTTE = (f'''INSERT INTO lutte (linked_id, year, achat, favorisation, formation) VALUES (%s, %s, %s, %s, %s) RETURNING id;''')
+DELETE_FROM_LUTTE = (f'''DELETE FROM lutte WHERE id = (%s);''') #AND year = %s;
+LUTTE_LIST = (f'''SELECT * FROM lutte''')
+
+
+
+app = Flask(__name__)
+
+def db_conn():
+    return psycopg2.connect(database="eticmont", host="127.0.0.1", user="eticmont", password="eticmont", port="5433")
+    #return psycopg2.connect(database="eticmont", host="postgres-.0.0.0',db", user="eticmont", password="eticmont", port="5432")==>config docker, modif aussi host de l'app en bas
+    
+    
+bcrypt = Bcrypt(app)
+app.secret_key = 'sohgHZ64gzgooazgskj'  # Use a strong secret key in production
+
+def create_tables():
+    conn=db_conn()
+    curr = conn.cursor()
+    curr.execute(CREATE_PLAYERS_TABLE)
+    curr.execute(CREATE_SURFACE_TABLE)
+    curr.execute(CREATE_BIODIV_TABLE)
+    curr.execute(CREATE_COEFBIODIV_TABLE)
+    curr.execute(CREATE_PLASTIQUE_TABLE)
+    curr.execute(CREATE_SOIL_TABLE)
+    curr.execute(CREATE_WATER_TABLE)  
+    curr.execute(CREATE_LUTTE_TABLE)
+
+    conn.commit()
+    conn.close()
+
+
+
+
+create_tables()
+
+#conn=db_conn()
+#curr = conn.cursor()
+#curr.execute(INSERT_INTO_COEFBIODIV, (2020, 20, 10, 30, 1.5, 1.5, 10, 9, 1, 1.5, 1, "Coefficients IAE"))
+#curr.execute(INSERT_INTO_COEFBIODIV, (2021, 20, 10, 30, 1.5, 1.5, 10, 9, 1, 1.5, 1, "Coefficients IAE"))
+#curr.execute(INSERT_INTO_COEFBIODIV, (2022, 20, 10, 30, 1.5, 1.5, 10, 9, 1, 1.5, 1, "Coefficients IAE"))
+#curr.execute(INSERT_INTO_COEFBIODIV, (2023, 20, 10, 30, 1.5, 1.5, 10, 9, 1, 1.5, 1, "Coefficients IAE"))
+#curr.execute(INSERT_INTO_COEFBIODIV, (2024, 20, 10, 30, 1.5, 1.5, 10, 9, 1, 1.5, 1, "Coefficients IAE"))
+#curr.execute(INSERT_INTO_COEFBIODIV, (2026, 20, 10, 30, 1.5, 1.5, 10, 9, 1, 1.5, 1, "Coefficients IAE"))
+#conn.commit()
+#conn.close()
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+
+@app.route('/initdb', methods=['GET','POST'])
+def initdb():
+    conn=db_conn()
+    curr = conn.cursor()
+    curr.execute(CREATE_PLAYERS_TABLE)
+    curr.execute(CREATE_SURFACE_TABLE)
+    curr.execute(CREATE_SOIL_TABLE)
+    curr.execute(CREATE_WATER_TABLE)
+    #curr.execute(CREATE_PLASTIC_TABLE)
+    #curr.execute(CREATE_LUTTE_TABLE)
+    conn.commit()
+
+    if get_player_list() != "no player in database":
+        playerlist = get_player_list()
+        totalplayers = len(playerlist)
+        flash(f"Db already initialisated and contain {totalplayers} players","warning")
+    else:
+        curr.execute(f'''INSERT INTO {TABLE_NAME} (name) VALUES (%s)''', ["myname"])
+        flash("Db initialisation succeed","success")
+
+
+    curr.close()
+    conn.close()
+
+    return render_template('initdb.html')
+
+
+@app.route("/login", methods=['GET', 'POST'])
+def login():
+    if request.method == 'GET':
+        return render_template('login.html')
+
+    if request.method == 'POST':
+        # Récupérer les données du formulaire
+        name = request.form['name']
+        password = request.form['userpass']
+
+        conn = db_conn()
+        curr = conn.cursor()
+
+        try:
+            # Récupérer l'utilisateur par nom dans la base de données
+            search_query = f"SELECT id, userpass, created_date FROM {TABLE_NAME} WHERE name = %s"
+            curr.execute(search_query, (name,))
+            #curr.execute(SEARCH_PLAYER, (name,))
+            result = curr.fetchone()
+
+            if result is None:
+                flash("Utilisateur non trouvé", "danger")
+                return redirect(url_for('login'))
+
+            # Extraire l'ID de l'utilisateur et le mot de passe haché
+            user_id, hashed_password, created_date = result
+
+            # Vérifier le mot de passe avec bcrypt
+            if bcrypt.check_password_hash(hashed_password, password):
+                # Authentification réussie
+                session['user_id'] = user_id
+                session['username'] = name
+                session['created_date'] = created_date
+                session['last_login_date'] = datetime.now()
+
+                # Mettre à jour la date de la dernière connexion
+                update_query = f"UPDATE {TABLE_NAME} SET last_login_date = %s WHERE id = %s"
+                curr.execute(update_query, (datetime.now(), user_id))
+                conn.commit()
+
+                flash("Connexion réussie", "success")
+                return redirect(url_for('dashboard'))
+            else:
+                flash("Mot de passe incorrect", "danger")
+                return redirect(url_for('login'))
+
+        except Exception as e:
+            flash(f"Erreur lors de la connexion : {e}", "danger")
+            return redirect(url_for('login'))
+
+        finally:
+            curr.close()
+            conn.close()
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'GET':
+        return render_template('register.html')
+
+    if request.method == 'POST':
+        # Récupérer les données du formulaire
+        name = request.form['name']
+        password = request.form['userpass']
+        confirm_password = request.form['userpass1']
+        farmname = request.form['farmname']
+        adress = request.form['adress']
+        integration_year = request.form['integration_year']
+
+        conn = db_conn()
+        curr = conn.cursor()
+        
+        search_query = f"SELECT id FROM {TABLE_NAME} WHERE name = %s"
+        curr.execute(search_query, (name,))
+        result = curr.fetchone()
+
+        if result != None:
+            flash("Cet utilisateur existe déjà", "warning")
+            return redirect(url_for('register'))
+
+        if password != confirm_password:
+            flash("Les mots de passe ne correspondent pas", "warning")
+            return redirect(url_for('register'))
+
+        # Hacher le mot de passe
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
+
+
+        try:
+            # Insérer le nom d'utilisateur et le mot de passe haché dans la base de données
+            insert_user = f"INSERT INTO {TABLE_NAME} (name, userpass, farmname, adress, integration_year) VALUES (%s, %s, %s, %s, %s) RETURNING id, created_date;"
+            curr.execute(insert_user, (name, hashed_password, farmname, adress, integration_year))
+            player_id, created_date = curr.fetchone()
+            
+            #curr.execute(f"INSERT INTO surface (linked_id, year, area, forest, hedge, bramble, pond, watercourse, wood_pile, walls, mown_area, not_worked_area, description) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id, linked_id;", [player_id,"non defini","0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "non defini"])
+            #curr.execute(insert_surface)
+            conn.commit()
+
+
+            # Enregistrer les informations de l'utilisateur dans la session
+            session['user_id'] = player_id
+            session['username'] = name
+            session['created_date'] = created_date
+
+            flash(f"Le compte {name} a été créé avec succès! Loggez vous !", "success")
+            return redirect(url_for('login'))
+
+        except Exception as e:
+            conn.rollback()
+            flash(f"Erreur lors de la création du compte : {e}", "danger")
+            return redirect(url_for('register'))
+
+        finally:
+            curr.close()
+            conn.close()
+
+
+@app.route('/dashboard', methods=['GET', 'POST'])
+def dashboard():
+    if request.method == 'GET':
+        if 'username' in session:
+            username = session['username']
+            id = session['user_id']
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+
+            conn = db_conn()
+            curr = conn.cursor()
+            curr.execute(f'''SELECT id, farmname, adress, integration_year FROM {TABLE_NAME} WHERE id = (%s)''', (id,))
+            ferme = curr.fetchall()
+            curr.execute(f'''SELECT id, year, surftot, surffr, surfgf, surfleg, prairie, culture, surfautre FROM surface WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            surfaces = curr.fetchall()
+            curr.execute(f'''SELECT id, year, haie, arbrealign, arbreseul, bosquet, mare, fosse, bordure, jachere, jacheremel, muret, description, biodivscore FROM biodiv WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            biodiv = curr.fetchall()
+            curr.execute(f'''SELECT id, year, surftotplast, surftottoile, paillagefr, paillagegf, paillageleg, limitation, embplast, embplastpourcent, embfr, embgf, embleg FROM plastique WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            plastique = curr.fetchall()
+            curr.execute(f'''SELECT id, year, soilanalyse, connaissance, formation, pratique FROM soil WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            soil = curr.fetchall()
+            curr.execute(f'''SELECT id, year, matosirrigfr, matosirriggf, matosirrigleg, consoeau, actions FROM water WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            water = curr.fetchall()
+            curr.execute(f'''SELECT id, year, achat, favorisation, formation FROM lutte WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            lutte = curr.fetchall()
+            curr.close()
+            conn.close()
+
+            return render_template('dashboard.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, ferme=ferme, surfaces=surfaces, biodiv=biodiv, plastique=plastique, soil=soil, water=water, lutte=lutte)
+        else:
+            return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        return render_template('dashboard.html', username=session['username'], user_id=session['user_id'], created_date=session['created_date'], last_login_date=session['last_login_date'])
+
+
+@app.route('/dashboardadmin', methods=['GET','POST' ])
+def dashboardadmin():
+    if request.method == 'GET':
+        if 'username' in session:
+            username = session['username']
+            id = session['user_id']  
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+
+            conn = db_conn()
+            curr = conn.cursor()
+
+            #liste des fermes
+            curr.execute("SELECT * FROM fermes")
+            ferme = curr.fetchall()
+
+            #somme des surfaces
+            curr.execute('''
+                SELECT
+                    year,
+                    SUM(surftot) AS total_surftot,
+                    SUM(surffr) AS total_surffr,
+                    SUM(surfgf) AS total_surfgf,
+                    SUM(surfleg) AS total_surfleg,
+                    SUM(prairie) AS total_prairie,
+                    SUM(culture) AS total_culture,
+                    SUM(surfautre) AS total_surfautre
+                FROM
+                    surface
+                GROUP BY
+                    year
+                ORDER BY
+                    year;
+            ''')    
+            surface_sums = curr.fetchall()
+
+
+            #somme des biodiv
+            curr.execute('''
+                SELECT
+                    year,
+                    SUM(haie) AS total_haie,
+                    SUM(arbrealign) AS total_arbrealign,
+                    SUM(arbreseul) AS total_arbreseul,
+                    SUM(bosquet) AS total_bosquet,
+                    SUM(mare) AS total_mare,
+                    SUM(fosse) AS total_fosse,
+                    SUM(bordure) AS total_bordure,
+                    SUM(jachere) AS total_jachere,
+                    SUM(jacheremel) AS total_jacheremel,
+                    SUM(muret) AS total_muret,
+                    SUM(biodivscore) AS total_biodivscore
+                FROM
+                    biodiv
+                GROUP BY
+                    year
+                ORDER BY
+                    year;
+            ''')
+
+
+            biodiv_sum = curr.fetchall()
+
+
+            curr.execute('''
+                SELECT
+                    year,
+                    SUM(surftot) AS total_surftot
+                FROM
+                    surface
+                GROUP BY
+                    year
+                ORDER BY
+                    year;
+            ''')    
+
+            surface_for_ratio = curr.fetchall()
+
+            curr.execute('''
+                SELECT
+                    year,
+                    SUM(biodivscore) AS total_biodivscore
+                FROM
+                    biodiv
+                GROUP BY
+                    year
+                ORDER BY
+                    year;
+            ''')
+
+            biodiv_for_ratio = curr.fetchall()
+
+
+
+
+            # Requête pour calculer total_biodivscore / total_surfautre par année
+            curr.execute('''
+                SELECT
+                    b.year,
+                    SUM(b.biodivscore) AS total_biodivscore,
+                    SUM(s.surftot) AS total_surftot,
+                    CASE
+                        WHEN SUM(s.surftot) != 0 THEN SUM(b.biodivscore) / SUM(s.surftot)
+                        ELSE NULL
+                    END AS ratio_biodivscore_surftot
+                FROM
+                    biodiv b
+                JOIN
+                    surface s
+                ON
+                    b.year = s.year
+                GROUP BY
+                    b.year
+                ORDER BY
+                    b.year;
+            ''')
+
+            biodiv_ratios = curr.fetchall()
+
+
+            curr.execute(f'''SELECT id, year, coefhaie, coefarbrealign, coefarbreseul, coefbosquet, coefmare, coeffosse, coefbordure, coefjachere, coefjacheremel, coefmuret, coefprairie, description FROM coefbiodiv''')
+            coefbiodiv = curr.fetchall()
+
+
+            curr.close()
+            conn.close()
+
+            ratios = []
+            surface_dict = {row[0]: row[1] for row in surface_for_ratio}  # Dictionnaire des surfaces par année
+            biodiv_dict = {row[0]: row[1] for row in biodiv_for_ratio}  # Dictionnaire des scores de biodiversité par année
+
+            # Calcul des ratios
+            for year in surface_dict:
+                if year in biodiv_dict:  # Assurez-vous que l'année existe dans les deux dictionnaires
+                    total_surftot = surface_dict[year]
+                    total_biodivscore = biodiv_dict[year]
+                    ratio = None if total_surftot == 0 else round(total_biodivscore / total_surftot, 4)
+                else:
+                    total_surftot = surface_dict[year]
+                    total_biodivscore = None
+                    ratio = None
+                ratios.append({
+                    'year': year,
+                    'total_surftot': total_surftot,
+                    'total_biodivscore': total_biodivscore,
+                    'ratio': ratio
+                })
+
+            return render_template('dashboardadmin.html', ratios=ratios, ferme = ferme, surface_sums=surface_sums, biodiv_sum=biodiv_sum, username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, coefbiodiv=coefbiodiv)
+
+
+
+            conn = db_conn()
+            curr = conn.cursor()
+
+            
+            curr.execute("SELECT * FROM surface")
+            surfaces = curr.fetchall()
+            curr.execute("SELECT * FROM biodiv")
+            biodiv = curr.fetchall()
+            curr.execute("SELECT * FROM plastique")
+            plastique = curr.fetchall()
+            curr.execute("SELECT * FROM soil")
+            soil = curr.fetchall()
+            curr.execute("SELECT * FROM water")
+            water = curr.fetchall()
+            curr.execute("SELECT * FROM lutte")
+            lutte = curr.fetchall()
+            curr.execute(f'''SELECT id, year, coefhaie, coefarbrealign, coefarbreseul, coefbosquet, coefmare, coeffosse, coefbordure, coefjachere, coefjacheremel, coefmuret, coefprairie, description FROM coefbiodiv''')
+            coefbiodiv = curr.fetchall()
+            curr.close()
+            conn.close()
+
+            return render_template('dashboardadmin.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, coefbiodiv=coefbiodiv, ferme=ferme, surfaces=surfaces, biodiv=biodiv, plastique=plastique, soil=soil, water=water, lutte=lutte)
+        else:
+            return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        return render_template('dashboardadmin.html', username=session['username'], user_id=session['user_id'], created_date=session['created_date'], last_login_date=session['last_login_date'])
+
+
+@app.route('/fiche/<int:idferme>', methods=['GET', 'POST'])
+def fiche(idferme):
+    if request.method == 'GET':
+        if 'username' in session:
+            username = session['username']
+            id = idferme
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+
+            conn = db_conn()
+            curr = conn.cursor()
+            curr.execute(f'''SELECT id, farmname, adress, integration_year FROM {TABLE_NAME} WHERE id = (%s)''', (id,))
+            ferme = curr.fetchall()
+            curr.execute(f'''SELECT id, year, surftot, surffr, surfgf, surfleg, prairie, culture, surfautre FROM surface WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            surfaces = curr.fetchall()
+            curr.execute(f'''SELECT id, year, haie, arbrealign, arbreseul, bosquet, mare, fosse, bordure, jachere, jacheremel, muret, description, biodivscore FROM biodiv WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            biodiv = curr.fetchall()
+            curr.execute(f'''SELECT id, year, surftotplast, surftottoile, paillagefr, paillagegf, paillageleg, limitation, embplast, embplastpourcent, embfr, embgf, embleg FROM plastique WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            plastique = curr.fetchall()
+            curr.execute(f'''SELECT id, year, soilanalyse, connaissance, formation, pratique FROM soil WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            soil = curr.fetchall()
+            curr.execute(f'''SELECT id, year, matosirrigfr, matosirriggf, matosirrigleg, consoeau, actions FROM water WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            water = curr.fetchall()
+            curr.execute(f'''SELECT id, year, achat, favorisation, formation FROM lutte WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            lutte = curr.fetchall()
+            curr.close()
+            conn.close()
+
+            return render_template('fiche.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, ferme=ferme, surfaces=surfaces, biodiv=biodiv, plastique=plastique, soil=soil, water=water, lutte=lutte)
+        else:
+            return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        return render_template('fiche.html', username=session['username'], user_id=session['user_id'], created_date=session['created_date'], last_login_date=session['last_login_date'])
+
+
+@app.route('/biodiv/<int:idferme>', methods=['GET', 'POST'])
+def biodiv(idferme):
+    if request.method == 'GET':
+        if 'username' in session:
+            username = session['username']
+            id = idferme
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+
+            conn = db_conn()
+            curr = conn.cursor()
+            curr.execute(f'''SELECT id, farmname, adress, integration_year FROM {TABLE_NAME} WHERE id = (%s)''', (id,))
+            ferme = curr.fetchall()
+            curr.execute(f'''SELECT id, year, haie, arbrealign, arbreseul, bosquet, mare, fosse, bordure, jachere, jacheremel, muret, description, biodivscore FROM biodiv WHERE linked_id = (%s) ORDER BY year ASC''', (id,))
+            biodiv = curr.fetchall()
+
+            curr.close()
+            conn.close()
+
+            return render_template('biodiv.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, ferme=ferme, biodiv=biodiv)
+        else:
+            return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        return render_template('biodiv.html', username=session['username'], user_id=session['user_id'], created_date=session['created_date'], last_login_date=session['last_login_date'])
+
+
+
+
+
+@app.route('/addsurf', methods=['GET','POST' ])
+def addsurf():
+    if request.method == 'GET':
+        
+        if 'username' in session:
+            username = session['username']
+            id = session['user_id']  
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+            #SEARCH_CREATED_DATE = (f'''SELECT created_date FROM {TABLE_NAME} WHERE name LIKE (%s)''')
+            return redirect(url_for('add', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date))
+
+    if (request.method == 'POST') & ('username' in session):
+        username = session['username']
+        id = session['user_id']  
+        created_date = session['created_date']
+        last_login_date = session['last_login_date']
+    
+        id = session['user_id']
+        year = int(request.form['year'])
+        surftot = float(request.form['surftot'])
+        surffr = float(request.form['surffr'])
+        surfgf = float(request.form['surfgf'])
+        surfleg = float(request.form['surfleg'])
+        prairie = float(request.form['prairie'])
+        culture = float(request.form['culture'])
+        surfautre = float(request.form['surfautre'])
+
+        sumsurf = surffr + surfgf + surfleg + prairie + culture + surfautre
+
+        if surftot == sumsurf:
+            conn = db_conn()
+            curr = conn.cursor()
+            curr.execute(INSERT_INTO_SURFACE, (id, year, surftot, surffr, surfgf, surfleg, prairie, culture, surfautre))
+            conn.commit()
+            curr.execute(f'''SELECT id, year, surftot, surffr, surfgf, surfleg, prairie, culture, surfautre FROM surface WHERE linked_id = (%s)''', (id,))
+            surfaces = curr.fetchall()
+            curr.close()
+            conn.close()
+
+            flash(f"Surface pour année {year} ajouté","success")
+
+            return render_template('add.html', surfaces=surfaces, username=username, user_id=id, created_date=created_date, last_login_date=last_login_date)
+        else:
+            flash(f"Surface Totale ne correspond pas à la somme des autres surfaces - Ligne non ajoutée, Recommencez !","danger")
+            return render_template('add.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date)
+
+    else:
+        flash(f"Mauvaise methode ou loggez vous","error")
+        #year,linked_id, year, surface_type, area, forest, hedge, bramble, pond, watercourse, wood_pile, walls, mown_area, not_worked_area, description = result
+        return render_template('dashboard.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, year=year) #, surface=surface,foret=foret, haies=haie, roncier=roncier, mare=mare, coursdeau=coursdeau, tasdebois=tasdebois, murets=murets, surfnontondue=surfnontondue, surfnontravaillee=surfnontravaillee )
+
+@app.route('/addbiodiv', methods=['GET','POST' ])
+def addbiodiv():
+    if request.method == 'GET':
+        
+        if 'username' in session:
+            username = session['username']
+            id = session['user_id']  
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+            #SEARCH_CREATED_DATE = (f'''SELECT created_date FROM {TABLE_NAME} WHERE name LIKE (%s)''')
+            return redirect(url_for('addbiodiv', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date))
+
+    if (request.method == 'POST') & ('username' in session):
+        username = session['username']
+        id = session['user_id']  
+        created_date = session['created_date']
+        last_login_date = session['last_login_date']
+    
+        id = session['user_id']
+        year = int(request.form['year'])
+        haie = float(request.form['haie'])
+        arbrealign = float(request.form['arbrealign'])
+        arbreseul = float(request.form['arbreseul'])
+        bosquet = float(request.form['bosquet'])
+        mare = float(request.form['mare'])
+        fosse = float(request.form['fosse'])
+        bordure = float(request.form['bordure'])
+        jachere = float(request.form['jachere'])
+        jacheremel = float(request.form['jacheremel'])
+        muret = float(request.form['muret'])
+        description = request.form['description']
+
+        conn = db_conn()
+        curr = conn.cursor()
+        curr.execute(f'''SELECT coefhaie, coefarbrealign, coefarbreseul, coefbosquet, coefmare, coeffosse, coefbordure, coefjachere, coefjacheremel, coefmuret, coefprairie FROM coefbiodiv WHERE year = (%s)''', (year,))
+        coefbiodiv = curr.fetchone()
+        curr.execute('''SELECT prairie FROM surface WHERE year = %s AND linked_id = %s''', (year, id))
+        surfprairie = curr.fetchone()
+        curr.close()
+        conn.close()
+
+
+        # Vérification que les coefficients ont été récupérés
+        if coefbiodiv is None:
+            biodivscore = 0
+            conn = db_conn()
+            curr = conn.cursor()
+            curr.execute(INSERT_INTO_BIODIV, (id, year, haie, arbrealign, arbreseul, bosquet, mare, fosse, bordure, jachere, jacheremel, muret, description, biodivscore))
+            conn.commit()
+            #curr.execute(f'''SELECT id, year, haie, arbrealign, arbreseul, bosquet, mare, fosse, bordure, jachere, jacheremel, muret, description, biodivscore FROM biodiv WHERE linked_id = (%s)''', (id,))
+            #biodiv = curr.fetchall()
+            curr.close()
+            conn.close() 
+
+            flash(f"Biodiv pour année {year} ajouté - Biodiv Score non disponible","success")
+
+        else:
+            coefhaie, coefarbrealign, coefarbreseul, coefbosquet, coefmare, coeffosse, coefbordure, coefjachere, coefjacheremel, coefmuret, coefprairie = coefbiodiv
+            prairie = surfprairie[0]
+            biodivscore = 10000*float(coefprairie)*float(prairie) + float(coefhaie)*haie + float(coefarbrealign)*arbrealign + float(coefarbreseul)*arbreseul + float(coefbosquet)*bosquet + float(coefmare)*mare + float(coeffosse)*fosse + float(coefbordure)*bordure + float(coefjachere)*jachere + float(coefjacheremel)*jacheremel + float(coefmuret)*muret 
+
+            conn = db_conn()
+            curr = conn.cursor()
+            curr.execute(INSERT_INTO_BIODIV, (id, year, haie, arbrealign, arbreseul, bosquet, mare, fosse, bordure, jachere, jacheremel, muret, description, biodivscore))
+            conn.commit()
+            #curr.execute(f'''SELECT id, year, haie, arbrealign, arbreseul, bosquet, mare, fosse, bordure, jachere, jacheremel, muret, description, biodivscore FROM biodiv WHERE linked_id = (%s)''', (id,))
+            #biodiv = curr.fetchall()
+            curr.close()
+            conn.close()
+
+            flash(f"Biodiv pour année {year} ajouté","success")
+        
+
+        #flash(f"Biodiv pour année {year} ajouté","success")
+
+        return render_template('add.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date)
+        #return render_template('dashboard.html')
+
+    else:
+        flash(f"Mauvaise methode ou loggez vous","error")
+        #year,linked_id, year, surface_type, area, forest, hedge, bramble, pond, watercourse, wood_pile, walls, mown_area, not_worked_area, description = result
+        return render_template('dashboard.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, year=year) #, surface=surface,foret=foret, haies=haie, roncier=roncier, mare=mare, coursdeau=coursdeau, tasdebois=tasdebois, murets=murets, surfnontondue=surfnontondue, surfnontravaillee=surfnontravaillee )
+
+
+@app.route('/addcoefbiodiv', methods=['GET','POST' ])
+def addcoefbiodiv():
+    if request.method == 'GET':
+        
+        if 'username' in session:
+            username = session['username']
+            id = session['user_id']  
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+            #SEARCH_CREATED_DATE = (f'''SELECT created_date FROM {TABLE_NAME} WHERE name LIKE (%s)''')
+            return redirect(url_for('add', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date))
+
+    if (request.method == 'POST') & ('username' in session):
+        username = session['username']
+        id = session['user_id']  
+        created_date = session['created_date']
+        last_login_date = session['last_login_date']
+    
+        id = session['user_id']
+        year = int(request.form['year'])
+        coefhaie = float(request.form['coefhaie'])
+        coefarbrealign = float(request.form['coefarbrealign'])
+        coefarbreseul = float(request.form['coefarbreseul'])
+        coefbosquet = float(request.form['coefbosquet'])
+        coefmare = float(request.form['coefmare'])
+        coeffosse = float(request.form['coeffosse'])
+        coefbordure = float(request.form['coefbordure'])
+        coefjachere = float(request.form['coefjachere'])
+        coefjacheremel = float(request.form['coefjacheremel'])
+        coefmuret = float(request.form['coefmuret'])
+        coefprairie = float(request.form['coefprairie'])
+        description = request.form['description']
+
+        conn = db_conn()
+        curr = conn.cursor()
+        curr.execute(INSERT_INTO_COEFBIODIV, (year, coefhaie, coefarbrealign, coefarbreseul, coefbosquet, coefmare, coeffosse, coefbordure, coefjachere, coefjacheremel, coefmuret, coefprairie, description))
+        conn.commit()
+        #coefbiodiv = curr.fetchone()
+        curr.close()
+        conn.close()
+
+        flash(f"Coefficient biodiv pour année {year} ajouté","success")
+
+        return render_template('add.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date)
+
+    else:
+        flash(f"Mauvaise methode ou loggez vous","error")
+        #year,linked_id, year, surface_type, area, forest, hedge, bramble, pond, watercourse, wood_pile, walls, mown_area, not_worked_area, description = result
+        return render_template('dashboard.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, year=year)
+    
+
+
+@app.route('/addplastic', methods=['GET','POST' ])
+def addplastic():
+    if request.method == 'GET':
+        
+        if 'username' in session:
+            username = session['username']
+            id = session['user_id']  
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+            #SEARCH_CREATED_DATE = (f'''SELECT created_date FROM {TABLE_NAME} WHERE name LIKE (%s)''')
+            return redirect(url_for('add', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date))
+
+    if (request.method == 'POST') & ('username' in session):
+        try:
+            username = session['username']
+            id = session['user_id']  
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+        
+            id = session['user_id']
+            year = int(request.form['year'])
+            surftotplast = float(request.form['surftotplast'])
+            surftottoile = float(request.form['surftottoile'])
+            paillagefr = json.dumps(request.form['paillagefr'])
+            paillagegf = json.dumps(request.form['paillagegf'])
+            paillageleg = json.dumps(request.form['paillageleg'])
+            limitation = json.dumps(request.form['limitation'])
+            embplast = json.dumps(request.form['embplast'])
+            embplastpourcent = request.form['embplastpourcent']
+            embfr = json.dumps(request.form['embfr'])
+            embgf = json.dumps(request.form['embgf'])
+            embleg = json.dumps(request.form['embleg'])
+
+            conn = db_conn()
+            curr = conn.cursor()
+            curr.execute(INSERT_INTO_PLASTIC, (id, year, surftotplast, surftottoile, paillagefr, paillagegf, paillageleg, limitation, embplast, embplastpourcent, embfr, embgf, embleg))
+            conn.commit()
+            #curr.execute(f'''SELECT id, year, surftotplast, surftottoile, paillagefr, paillagegf, paillageleg, limitation, embplast, embplastpourcent, embfr, embgf, embleg FROM plastique WHERE linked_id = (%s)''', (id,))
+            #plastique = curr.fetchall()
+            curr.close()
+            conn.close()
+
+            flash(f"Plastique pour année {year} ajouté","success")
+
+            return render_template('add.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date)
+
+        except errors.CheckViolation as e:
+            # Handle the CheckConstraint violation
+            error_message = str(e).split("\nDETAIL:")[0]  # Get the primary error message
+            return f"Error: {error_message}. Mauvaise entrée.", 400
+
+        except Exception as e:
+            # Handle other exceptions
+            return f"Erreur innattendue: {str(e)}", 500
+        
+    else:
+        flash(f"Mauvaise methode ou loggez vous","error")
+        #year,linked_id, year, surface_type, area, forest, hedge, bramble, pond, watercourse, wood_pile, walls, mown_area, not_worked_area, description = result
+        return render_template('dashboard.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, year=year) 
+
+
+
+@app.route('/addsoil', methods=['GET','POST' ])
+def addsoil():
+    if request.method == 'GET':
+        
+        if 'username' in session:
+            username = session['username']
+            id = session['user_id']  # Récupère le nom de l'utilisateur de la session
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+            #SEARCH_CREATED_DATE = (f'''SELECT created_date FROM {TABLE_NAME} WHERE name LIKE (%s)''')
+            return redirect(url_for('addsoil', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date))
+
+    if (request.method == 'POST') & ('username' in session):
+        username = session['username']
+        id = session['user_id']  # Récupère le nom de l'utilisateur de la session
+        created_date = session['created_date']
+        last_login_date = session['last_login_date']
+    
+        id = session['user_id']
+        year = int(request.form['year'])
+        analyse = json.dumps(request.form['analyse'])
+        connaissance = int(request.form['connaissance'])
+        formation = json.dumps(request.form['formation'])
+        pratique = json.dumps(request.form['pratique'])
+
+        conn = db_conn()
+        curr = conn.cursor()
+        curr.execute(INSERT_INTO_SOIL, (id, year, analyse, connaissance, formation, pratique))
+        conn.commit()
+        curr.execute(f'''SELECT id, year, soilanalyse, connaissance, formation, pratique FROM soil WHERE linked_id = (%s)''', (id,))
+        soils = curr.fetchall()
+        curr.close()
+        conn.close()
+
+        flash(f"Données sols pour année {year} ajouté","success")
+
+        return render_template('add.html', soils=soils, username=username, user_id=id, created_date=created_date, last_login_date=last_login_date)
+        
+    else:
+        flash(f"Mauvaise methode ou loggez vous","error")
+        #year,linked_id, year, surface_type, area, forest, hedge, bramble, pond, watercourse, wood_pile, walls, mown_area, not_worked_area, description = result
+        return render_template('dashboard.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, year=year)
+
+
+@app.route('/addwater', methods=['GET','POST' ])
+def addwater():
+    if request.method == 'GET':
+        
+        if 'username' in session:
+            username = session['username']
+            id = session['user_id']  # Récupère le nom de l'utilisateur de la session
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+            #SEARCH_CREATED_DATE = (f'''SELECT created_date FROM {TABLE_NAME} WHERE name LIKE (%s)''')
+            return redirect(url_for('addwater', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date))
+
+    if (request.method == 'POST') & ('username' in session):
+        username = session['username']
+        id = session['user_id']  # Récupère le nom de l'utilisateur de la session
+        created_date = session['created_date']
+        last_login_date = session['last_login_date']
+    
+        id = session['user_id']
+        year = int(request.form['year'])
+        matosirrigfr = json.dumps(request.form['matosirrigfr'])
+        matosirriggf = json.dumps(request.form['matosirriggf'])
+        matosirrigleg = json.dumps(request.form['matosirrigleg'])
+        consoeau = int(request.form['consoeau'])
+        actions = json.dumps(request.form['actions'])
+
+        conn = db_conn()
+        curr = conn.cursor()
+        curr.execute(INSERT_INTO_WATER, (id, year, matosirrigfr, matosirriggf, matosirrigleg, consoeau, actions))
+        conn.commit()
+        curr.execute(f'''SELECT id, year, matosirrigfr, matosirriggf, matosirrigleg, consoeau, actions FROM water WHERE linked_id = (%s)''', (id,))
+        water = curr.fetchall()
+        curr.close()
+        conn.close()
+
+        flash(f"Données eau pour année {year} ajouté","success")
+
+        return render_template('add.html', water=water, username=username, user_id=id, created_date=created_date, last_login_date=last_login_date)
+        
+    else:
+        flash(f"Mauvaise methode ou loggez vous","error")
+        #year,linked_id, year, surface_type, area, forest, hedge, bramble, pond, watercourse, wood_pile, walls, mown_area, not_worked_area, description = result
+        return render_template('dashboard.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, year=year, water=water)
+
+
+@app.route('/addlutte', methods=['GET','POST' ])
+def addlutte():
+    if request.method == 'GET':
+        
+        if 'username' in session:
+            username = session['username']
+            id = session['user_id']  # Récupère le nom de l'utilisateur de la session
+            created_date = session['created_date']
+            last_login_date = session['last_login_date']
+            #SEARCH_CREATED_DATE = (f'''SELECT created_date FROM {TABLE_NAME} WHERE name LIKE (%s)''')
+            return redirect(url_for('addlutte', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date))
+
+    if (request.method == 'POST') & ('username' in session):
+        username = session['username']
+        id = session['user_id']  # Récupère le nom de l'utilisateur de la session
+        created_date = session['created_date']
+        last_login_date = session['last_login_date']
+    
+        id = session['user_id']
+        year = int(request.form['year'])
+        achat = json.dumps(request.form['achat'])
+        favorisation = json.dumps(request.form['favorisation'])
+        formation = json.dumps(request.form['formation'])
+
+        conn = db_conn()
+        curr = conn.cursor()
+        curr.execute(INSERT_INTO_LUTTE, (id, year, achat, favorisation, formation))
+        conn.commit()
+        curr.execute(f'''SELECT id, year, achat, favorisation, formation FROM lutte WHERE linked_id = (%s)''', (id,))
+        lutte = curr.fetchall()
+        curr.close()
+        conn.close()
+
+        flash(f"Lutte intégrée pour année {year} ajoutée","success")
+
+        return render_template('add.html', lutte=lutte, username=username, user_id=id, created_date=created_date, last_login_date=last_login_date)
+        
+    else:
+        flash(f"Mauvaise methode ou loggez vous","error")
+        return render_template('dashboard.html', username=username, user_id=id, created_date=created_date, last_login_date=last_login_date, year=year, lutte=lutte)
+
+
+
+
+@app.route('/deletesurf/<int:idtodel>')
+def deletesurf(idtodel):
+    conn = db_conn()
+    cur = conn.cursor()
+    
+    # Supprimer la ligne avec l'id correspondant
+    cur.execute(DELETE_FROM_SURFACE, (idtodel,))
+    
+    # Fermeture des connexions
+    cur.close()
+    conn.commit()
+    conn.close()
+    
+    flash('Ligne supprimée avec succès.', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/deletebiodiv/<int:idtodel>')
+def deletebiodiv(idtodel):
+    conn = db_conn()
+    cur = conn.cursor()
+    
+    # Supprimer la ligne avec l'id correspondant
+    cur.execute(DELETE_FROM_BIODIV, (idtodel,))
+    
+    # Fermeture des connexions
+    cur.close()
+    conn.commit()
+    conn.close()
+    
+    flash('Ligne supprimée avec succès.', 'success')
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/deletecoefbiodiv/<int:idtodel>')
+def deletecoefbiodiv(idtodel):
+    conn = db_conn()
+    cur = conn.cursor()
+    
+    # Supprimer la ligne avec l'id correspondant
+    cur.execute(DELETE_FROM_COEFBIODIV, (idtodel,))
+    
+    # Fermeture des connexions
+    cur.close()
+    conn.commit()
+    conn.close()
+    
+    flash('Ligne supprimée avec succès.', 'success')
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/deleteplastic/<int:idtodel>')
+def deleteplastic(idtodel):
+    conn = db_conn()
+    cur = conn.cursor()
+    
+    # Supprimer la ligne avec l'id correspondant
+    cur.execute(DELETE_FROM_PLASTIC, (idtodel,))
+    
+    # Fermeture des connexions
+    cur.close()
+    conn.commit()
+    conn.close()
+    
+    flash('Ligne supprimée avec succès.', 'success')
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/deletesoil/<int:idtodel>')
+def deletesoil(idtodel):
+    conn = db_conn()
+    cur = conn.cursor()
+    
+    # Supprimer la ligne avec l'id correspondant
+    cur.execute(DELETE_FROM_SOIL, (idtodel,))
+    
+    # Fermeture des connexions
+    cur.close()
+    conn.commit()
+    conn.close()
+    
+    flash('Ligne supprimée avec succès.', 'success')
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/deletewater/<int:idtodel>')
+def deletewater(idtodel):
+    conn = db_conn()
+    cur = conn.cursor()
+    
+    # Supprimer la ligne avec l'id correspondant
+    cur.execute(DELETE_FROM_WATER, (idtodel,))
+    
+    # Fermeture des connexions
+    cur.close()
+    conn.commit()
+    conn.close()
+    
+    flash('Ligne supprimée avec succès.', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/deletelutte/<int:idtodel>')
+def deletelutte(idtodel):
+    conn = db_conn()
+    cur = conn.cursor()
+    
+    # Supprimer la ligne avec l'id correspondant
+    cur.execute(DELETE_FROM_LUTTE, (idtodel,))
+    
+    # Fermeture des connexions
+    cur.close()
+    conn.commit()
+    conn.close()
+    
+    flash('Ligne supprimée avec succès.', 'success')
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/logout', methods=['GET', 'POST'])
+def logout():
+    session.pop('user_id', None)  # Remove the user_id from session
+    session.pop('username', None) 
+    session.pop('created_date', None)
+    session.pop('last_login_date', None)
+    return redirect(url_for('home'))
+
+
+@ app.get("/playerslist")
+def get_player_list():
+    curr = db_conn().cursor()
+    curr.execute(PLAYERS_LIST)
+    playerlist = curr.fetchall()
+    db_conn().close()
+
+    if playerlist:
+        return playerlist
+    else:
+        return "no player in database"
+    
+@ app.get("/surfacelist")
+def get_surface_list():
+    curr = db_conn().cursor()
+    curr.execute(SURFACE_LIST)
+    surfacelist = curr.fetchall()
+    db_conn().close()
+
+    if surfacelist:
+        return surfacelist
+    else:
+        return "no surface in database"
+
+@ app.get("/totalplayer")
+def get_total_player():
+    curr = db_conn().cursor()
+    curr.execute(PLAYERS_LIST)
+    playerlist = curr.fetchall()
+    totalplayers = len(playerlist)
+    db_conn().close()
+
+    if playerlist:
+        return ("total players are : " + str(totalplayers))
+    else:
+        None
+
+@app.get('/id_by_name')
+def id_by_name():
+    name = request.get_json()["name"]
+    curr = db_conn().cursor()
+    curr.execute(SEARCH_PLAYER, (name,))
+    result = curr.fetchone()
+    curr.close()
+    db_conn().close()
+    if result:
+        user_id = result[0]
+        #return jsonify({ "id" : f"{user_id}" })  #show id between " " as string ? 
+        return user_id #jsonify({"id": user_id})  #show id as integer ? or as string without " " ?
+    else:
+        return jsonify({"not available":"try other one"})
+
+@app.post("/check")
+def checkifexist():
+    name = request.get_json()["name"]
+    player_list = get_player_list()
+    exist = "no"
+    for row in player_list:
+        if row[1] == name:
+            exist = "yes"
+            break # sortie de boucle si on trouve le joueur
+    
+    if exist == "yes":
+        return jsonify({f"player {name} exists":exist}), name
+    else: 
+        return exist
+
+@ app.post("/deletetable")
+def deletetable():
+    table_name = request.get_json()["table"]
+    delete_table_query = f"DROP TABLE IF EXISTS {table_name};"
+    conn=db_conn()
+    curr = conn.cursor()
+    curr.execute(delete_table_query)
+    conn.commit()
+    conn.close()
+    return jsonify({f"table {table_name} supprimée":table_name})
+
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0',port=5010, debug=True)
+    #app.run(host='0.0.0.0',port=5010,debug=True) ==> config docker , modif aussi db_conn() en haut
