@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Inscription — Etic'Monts{% endblock %}
+
+{% block auth_content %}
+<div class="auth-card">
+    <div class="auth-brand">
+        <h1>Etic'Monts</h1>
+        <p>Accès à l'inscription</p>
+    </div>
+    <form action="{{ url_for('register') }}" method="POST">
+        <div class="form-group">
+            <label for="register_token">Token d'inscription</label>
+            <input type="password" id="register_token" name="register_token" required placeholder="Entrez le token fourni par l'administrateur">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Valider</button>
+    </form>
+    <p class="auth-switch">Déjà un compte ? <a href="{{ url_for('login') }}">Se connecter</a></p>
+</div>
+{% endblock %}

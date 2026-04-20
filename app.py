@@ -276,8 +276,26 @@ def login():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    valid_token = os.environ.get("REGISTER_TOKEN", "")
+
+    # ---------- Token gate ----------
+    if request.method == "GET" and not session.get("register_authorized"):
+        return render_template("register_token.html")
+
+    if request.method == "POST" and "register_token" in request.form:
+        if request.form["register_token"] == valid_token:
+            session["register_authorized"] = True
+            return redirect(url_for("register"))
+        flash("Token invalide.", "danger")
+        return redirect(url_for("register"))
+
+    # ---------- Registration form ----------
     if request.method == "GET":
         return render_template("register.html")
+
+    if not session.get("register_authorized"):
+        flash("Accès non autorisé.", "danger")
+        return redirect(url_for("register"))
 
     name = request.form["name"]
     password = request.form["userpass"]
@@ -305,6 +323,7 @@ def register():
             (name, hashed_password, farmname, adress, integration_year),
         )
         conn.commit()
+        session.pop("register_authorized", None)
         flash(f"Le compte {name} a été créé avec succès ! Connectez-vous.", "success")
         return redirect(url_for("login"))
     except Exception as e:
