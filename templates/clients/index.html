@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Clients{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Clients</h1>
+    <p class="subtitle">Liste des clients & lien de commande personnel</p>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Nouveau client</h2></div>
+    <form action="{{ url_for('clients.create') }}" method="POST" class="form-grid">
+        <div class="form-group"><label>Nom / Raison sociale</label><input type="text" name="name" required></div>
+        <div class="form-group"><label>Contact</label><input type="text" name="contact_name"></div>
+        <div class="form-group"><label>Email</label><input type="email" name="email"></div>
+        <div class="form-group"><label>Téléphone</label><input type="text" name="phone"></div>
+        <div class="form-group" style="grid-column: 1 / -1;"><label>Adresse</label><input type="text" name="address"></div>
+        <div class="form-group"><label>Code postal</label><input type="text" name="postal_code"></div>
+        <div class="form-group"><label>Ville</label><input type="text" name="city"></div>
+        <div class="form-group"><label>Latitude</label><input type="number" name="lat" step="0.000001"></div>
+        <div class="form-group"><label>Longitude</label><input type="number" name="lng" step="0.000001"></div>
+        <div class="form-group" style="grid-column: 1 / -1;"><label>Notes</label><input type="text" name="notes"></div>
+        <button type="submit" class="btn btn-primary btn-sm">Créer</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>{{ clients|length }} client(s)</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th>Nom</th><th>Contact</th><th>Email/Tél</th><th>Adresse</th><th>Coord.</th><th>Lien commande</th><th>Actif</th><th>Actions</th></tr>
+            {% for c in clients %}
+            <tr>
+                <td>
+                    <form id="cli-{{ c.id }}" action="{{ url_for('clients.update', cid=c.id) }}" method="POST"></form>
+                    <input form="cli-{{ c.id }}" name="name" value="{{ c.name }}" required>
+                </td>
+                <td><input form="cli-{{ c.id }}" name="contact_name" value="{{ c.contact_name or '' }}"></td>
+                <td>
+                    <input form="cli-{{ c.id }}" type="email" name="email" value="{{ c.email or '' }}" placeholder="email">
+                    <input form="cli-{{ c.id }}" name="phone" value="{{ c.phone or '' }}" placeholder="tél">
+                </td>
+                <td>
+                    <input form="cli-{{ c.id }}" name="address" value="{{ c.address or '' }}" placeholder="adresse">
+                    <input form="cli-{{ c.id }}" name="postal_code" value="{{ c.postal_code or '' }}" placeholder="CP" style="width:80px;">
+                    <input form="cli-{{ c.id }}" name="city" value="{{ c.city or '' }}" placeholder="ville">
+                </td>
+                <td>
+                    <input form="cli-{{ c.id }}" name="lat" type="number" step="0.000001" value="{{ c.lat or '' }}" placeholder="lat" style="width:90px;">
+                    <input form="cli-{{ c.id }}" name="lng" type="number" step="0.000001" value="{{ c.lng or '' }}" placeholder="lng" style="width:90px;">
+                </td>
+                <td>
+                    {% set link = url_for('public.order_form', token=c.order_token, _external=True) %}
+                    <a href="{{ link }}" target="_blank" class="link-pill">Ouvrir</a>
+                    <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText('{{ link }}'); this.textContent='Copié'; return false;">Copier</button>
+                    <form action="{{ url_for('clients.regenerate_token', cid=c.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Régénérer le lien ? L\'ancien sera invalidé.');">
+                        <button class="btn btn-danger btn-sm">↻</button>
+                    </form>
+                </td>
+                <td><input form="cli-{{ c.id }}" type="checkbox" name="is_active" {% if c.is_active %}checked{% endif %}></td>
+                <td>
+                    <button form="cli-{{ c.id }}" class="btn btn-primary btn-sm" type="submit">Sauver</button>
+                    {% if is_admin and is_admin() %}
+                    <form action="{{ url_for('clients.delete', cid=c.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Supprimer ?');">
+                        <button class="btn btn-danger btn-sm">Suppr</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+{% endblock %}

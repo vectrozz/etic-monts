@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Catalogue partagé{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Catalogue partagé</h1>
+    <p class="subtitle">Valeurs réutilisables pour les champs textuels de « Mon exploitation »</p>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Ajouter une entrée</h2></div>
+    <form action="{{ url_for('catalog.create') }}" method="POST" class="form-grid">
+        <div class="form-group">
+            <label>Catégorie</label>
+            <select name="category" required>
+                <option value="">— choisir —</option>
+                {% for key, label in categories %}
+                <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="grid-column: span 2;">
+            <label>Valeur</label>
+            <input type="text" name="value" required placeholder="ex: Toile tissée biodégradable BSF">
+        </div>
+        <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Description (optionnel)</label>
+            <input type="text" name="description" placeholder="Notes, fournisseur, dosage...">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
+    </form>
+    <p style="margin-top:8px;color:var(--text-muted);font-size:0.78rem;">
+        Les catégories correspondent aux champs textuels de « Mon exploitation ».
+        Chaque entrée saisie ici alimente automatiquement la liste déroulante du tableau de bord.
+    </p>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Entrées existantes ({{ items|length }})</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th>Catégorie</th><th>Valeur</th><th>Description</th><th>Réutilisations</th><th>Actions</th></tr>
+            {% for it in items %}
+            <tr>
+                <form id="cat-{{ it.id }}" action="{{ url_for('catalog.update', item_id=it.id) }}" method="POST"></form>
+                <td>
+                    <select form="cat-{{ it.id }}" name="category">
+                        {% for key, label in categories %}
+                        <option value="{{ key }}" {% if key == it.category %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                        {% if it.category not in categories|map(attribute=0) %}
+                        <option value="{{ it.category }}" selected>{{ it.category_label }}</option>
+                        {% endif %}
+                    </select>
+                </td>
+                <td><input form="cat-{{ it.id }}" type="text" name="value" value="{{ it.value }}" required></td>
+                <td><input form="cat-{{ it.id }}" type="text" name="description" value="{{ it.description or '' }}"></td>
+                <td>{{ it.usage_count }}</td>
+                <td style="white-space:nowrap;">
+                    <button form="cat-{{ it.id }}" type="submit" class="btn btn-primary btn-sm">Sauver</button>
+                    <form action="{{ url_for('catalog.remove', item_id=it.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Supprimer cette entrée ?');">
+                        <button class="btn btn-danger btn-sm" type="submit">Suppr</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+{% endblock %}

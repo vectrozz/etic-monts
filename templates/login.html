@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Connexion — Etic'Monts{% endblock %}
+{% block title %}Connexion — {{ branding.name or "Etic'Monts" }}{% endblock %}
 
 {% block auth_content %}
 <div class="auth-card">
     <div class="auth-brand">
-        <h1>Etic'Monts</h1>
+        <h1>{{ branding.name or "Etic'Monts" }}</h1>
         <p>Connexion à votre tableau de bord</p>
     </div>
-    <form action="{{ url_for('login') }}" method="POST">
+    <form action="{{ url_for('main.login') }}" method="POST">
         <div class="form-group">
             <label for="name">Identifiant</label>
             <input type="text" id="name" name="name" required autocomplete="username">
@@ -18,6 +18,6 @@
         </div>
         <button type="submit" class="btn btn-primary btn-block">Se connecter</button>
     </form>
-    <p class="auth-switch">Pas encore de compte ? <a href="{{ url_for('register') }}">Créer un compte</a></p>
+    <p class="auth-switch">Pas encore de compte ? <a href="{{ url_for('main.register') }}">Créer un compte</a></p>
 </div>
 {% endblock %}

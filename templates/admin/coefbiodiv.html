@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Coefficients MAEC — Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Coefficients MAEC</h1>
+    <p class="subtitle">Pondérations IAE par année — utilisées pour calculer le score Biodiv des fermes</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Coefficients existants</h2>
+        <span class="card-badge">{{ coefbiodiv|length }} année{{ 's' if coefbiodiv|length > 1 else '' }}</span>
+    </div>
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th class="row-label">Champ</th>
+            {% for row in coefbiodiv %}<th>{{ row[1] }}</th>{% endfor %}
+            <th style="background:var(--accent-glow);color:var(--accent);">Ajouter / écraser</th>
+        </tr>
+        {% for r in coefbiodiv %}
+        <tr style="display:none;"><td><form id="cf-{{ r[0] }}" action="{{ url_for('admin.coefbiodiv_update', cid=r[0]) }}" method="POST"></form></td></tr>
+        {% endfor %}
+        <tr>
+            <td class="row-label">Année</td>
+            {% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="year" min="2010" max="2100" value="{{ r[1] }}" style="width:90px;text-align:center"></td>{% endfor %}
+            <td><input type="number" form="form-coef-new" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td>
+        </tr>
+        <tr><td class="row-label">Coef Haies</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coefhaie" step="0.0001" min="0" value="{{ r[2] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coefhaie" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Coef Arbres alignés</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coefarbrealign" step="0.0001" min="0" value="{{ r[3] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coefarbrealign" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Coef Arbres isolés</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coefarbreseul" step="0.0001" min="0" value="{{ r[4] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coefarbreseul" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Coef Bosquets</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coefbosquet" step="0.0001" min="0" value="{{ r[5] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coefbosquet" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Coef Mares</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coefmare" step="0.0001" min="0" value="{{ r[6] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coefmare" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Coef Fossés</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coeffosse" step="0.0001" min="0" value="{{ r[7] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coeffosse" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Coef Bordures</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coefbordure" step="0.0001" min="0" value="{{ r[8] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coefbordure" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Coef Jachères</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coefjachere" step="0.0001" min="0" value="{{ r[9] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coefjachere" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Coef Jachères mell.</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coefjacheremel" step="0.0001" min="0" value="{{ r[10] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coefjacheremel" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Coef Murets</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coefmuret" step="0.0001" min="0" value="{{ r[11] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coefmuret" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Coef Prairies</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="number" name="coefprairie" step="0.0001" min="0" value="{{ r[12] }}"></td>{% endfor %}<td><input type="number" form="form-coef-new" name="coefprairie" step="0.0001" min="0" required></td></tr>
+        <tr><td class="row-label">Description</td>{% for r in coefbiodiv %}<td><input form="cf-{{ r[0] }}" type="text" name="description" value="{{ r[13] or '' }}"></td>{% endfor %}<td><input type="text" form="form-coef-new" name="description"></td></tr>
+        <tr>
+            <td class="row-label">Actions</td>
+            {% for r in coefbiodiv %}
+            <td>
+                <button form="cf-{{ r[0] }}" type="submit" class="btn btn-primary btn-sm">Sauver</button>
+                <form action="{{ url_for('admin.coefbiodiv_delete', cid=r[0]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Supprimer ?');">
+                    <button class="btn btn-danger btn-sm">Suppr</button>
+                </form>
+            </td>
+            {% endfor %}
+            <td>
+                <form id="form-coef-new" action="{{ url_for('farm.addcoefbiodiv') }}" method="POST">
+                    <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
+                </form>
+            </td>
+        </tr>
+    </table>
+    </div>
+    <p style="margin-top:12px;color:var(--text-muted);font-size:0.78rem;">
+        Ajouter une année déjà existante remplace les coefficients de cette année (clé unique sur l'année).
+    </p>
+</div>
+{% endblock %}

@@ -1,20 +1,37 @@
-version: '3.8'
+# =============================================================================
+# Etic'Monts — DEV docker-compose
+# =============================================================================
+# Usage:  docker compose up --build
+#
+# Dev mode runs Flask's built-in server on port 5003 (no nginx, no gunicorn).
+# For PROD (gunicorn + nginx + TLS), use docker-compose.prod.yml instead:
+#     docker compose -f docker-compose.prod.yml up -d --build
+#
+# This file uses a separate project name (eticmonts-dev) and a separate
+# postgres volume so it does NOT collide with the prod stack.
+# =============================================================================
+
+name: eticmonts-dev
 
 services:
   app-flask:
-    build:  
+    build:
       context: ./
-      dockerfile: eticmont.Dockerfile
+      dockerfile: Dockerfile.prod
+    env_file: .env
+    environment:
+      FLASK_ENV: development
+      POSTGRES_HOST: postgres-db
+      POSTGRES_PORT: "5432"
     networks:
       - front-db
     ports:
       - "5003:5010"
     depends_on:
-      - postgres-db
-    entrypoint:
-      - python3
-      - /etc/app-docker.py
-
+      postgres-db:
+        condition: service_healthy
+    # Override the prod gunicorn CMD with Flask's dev server (auto-reload).
+    command: ["python3", "app.py"]
 
   postgres-db:
     image: postgres:17
@@ -23,15 +40,19 @@ services:
       POSTGRES_PASSWORD: "eticmont"
       POSTGRES_DB: "eticmont"
     volumes:
-      - "/home/postgres-data:/var/lib/postgresql/data"
-      - "/home/postgres-backups:/backups"
+      - postgres-data-dev:/var/lib/postgresql/data
     networks:
       - front-db
     ports:
-      - "5433:5432"
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eticmont -d eticmont"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  postgres-data:
+  postgres-data-dev:
 
 networks:
   front-db:

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Coût de production — {{ crop_def.label }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Coût de production — {{ crop_def.label }}</h1>
+    <p class="subtitle">
+        Temps de travaux en heures par tâche et par année.
+        Une colonne par année renseignée ; saisissez la suivante dans la colonne « Ajouter ».
+    </p>
+</div>
+
+<div class="instructions">
+    <strong>Mode d'emploi :</strong> renseignez le nombre de plants et la surface (m²)
+    pour permettre le calcul du <strong>temps par 1000 m²</strong>, qui sert de comparatif
+    entre fermes et entre années. Le total des heures est calculé automatiquement.
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>{{ crop_def.label }} — {{ rows|length }} année{{ 's' if rows|length > 1 else '' }}</h2>
+        <span class="card-badge">Unité : {{ crop_def.unit_label_full }}</span>
+    </div>
+    <div class="table-wrapper">
+        <table>
+            <tr>
+                <th class="row-label">Champ</th>
+                {% for r in rows %}<th>{{ r.year }}</th>{% endfor %}
+                <th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th>
+            </tr>
+
+            <tr>
+                <td class="row-label">Année</td>
+                {% for r in rows %}<td>{{ r.year }}</td>{% endfor %}
+                <td><input type="number" form="form-pc" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td>
+            </tr>
+
+            <tr>
+                <td class="row-label">Nombre de {{ crop_def.unit_label }}</td>
+                {% for r in rows %}<td>{{ r.nb_units or '—' }}</td>{% endfor %}
+                <td><input type="number" form="form-pc" name="nb_units" min="0" step="1" placeholder="ex: 4000"></td>
+            </tr>
+
+            <tr>
+                <td class="row-label">Surface (m²)</td>
+                {% for r in rows %}<td>{{ r.surface_m2 or '—' }}</td>{% endfor %}
+                <td><input type="number" form="form-pc" name="surface_m2" min="0" step="0.01" placeholder="ex: 1000" class="pc-surface"></td>
+            </tr>
+
+            {% for key, label in crop_def.tasks %}
+            <tr>
+                <td class="row-label">{{ label }}</td>
+                {% for r in rows %}<td>{{ r.tasks.get(key, '') or '—' }}</td>{% endfor %}
+                <td><input type="number" form="form-pc" name="{{ key }}" min="0" step="0.1" class="pc-task" placeholder="Heures"></td>
+            </tr>
+            {% endfor %}
+
+            <tr class="row-total">
+                <td class="row-label"><strong>Total (Heures)</strong></td>
+                {% for r in rows %}<td><strong>{{ r.total_hours }}</strong></td>{% endfor %}
+                <td><input type="number" id="pc-total" class="computed-field" readonly tabindex="-1" value="0"></td>
+            </tr>
+
+            <tr class="row-total">
+                <td class="row-label"><strong>Heures / 1000 m²</strong></td>
+                {% for r in rows %}<td><strong>{{ r.per_1000m2 if r.per_1000m2 is not none else '—' }}</strong></td>{% endfor %}
+                <td><input type="number" id="pc-per1000" class="computed-field" readonly tabindex="-1" value="—"></td>
+            </tr>
+
+            <tr>
+                <td class="row-label">Notes</td>
+                {% for r in rows %}<td style="white-space:normal;max-width:180px;">{{ r.notes or '' }}</td>{% endfor %}
+                <td><input type="text" form="form-pc" name="notes" placeholder="Notes libres"></td>
+            </tr>
+
+            <tr>
+                <td class="row-label">Actions</td>
+                {% for r in rows %}
+                <td>
+                    <form action="{{ url_for('production_cost.delete', crop=crop, cid=r.id) }}"
+                          method="POST" onsubmit="return confirm('Supprimer cette année ?');">
+                        <button type="submit" class="btn btn-danger btn-sm">Suppr</button>
+                    </form>
+                </td>
+                {% endfor %}
+                <td>
+                    <form id="form-pc" action="{{ url_for('production_cost.upsert', crop=crop) }}" method="POST">
+                        <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                    </form>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Live total + per-1000m² calculation as the user types
+(function () {
+    const taskInputs = document.querySelectorAll('.pc-task');
+    const surfaceInput = document.querySelector('.pc-surface');
+    const totalDisplay = document.getElementById('pc-total');
+    const per1000Display = document.getElementById('pc-per1000');
+
+    function recompute() {
+        let total = 0;
+        taskInputs.forEach(i => total += parseFloat(i.value) || 0);
+        totalDisplay.value = total ? total.toFixed(2) : 0;
+        const surf = parseFloat(surfaceInput.value);
+        if (surf && surf > 0 && total > 0) {
+            per1000Display.value = (total / surf * 1000).toFixed(2);
+        } else {
+            per1000Display.value = '—';
+        }
+    }
+    taskInputs.forEach(i => i.addEventListener('input', recompute));
+    if (surfaceInput) surfaceInput.addEventListener('input', recompute);
+})();
+</script>
+{% endblock %}

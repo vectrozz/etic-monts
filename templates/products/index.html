@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Produits{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Produits</h1>
+    <p class="subtitle">Catalogue de légumes / fruits proposés par le réseau</p>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Nouveau produit</h2></div>
+    <form action="{{ url_for('products.create') }}" method="POST" class="form-grid">
+        <div class="form-group"><label>Nom</label><input type="text" name="name" required placeholder="ex: Fraises bio"></div>
+        <div class="form-group">
+            <label>Emoji</label>
+            <input type="text" name="emoji" maxlength="10" placeholder="auto si vide" style="text-align:center;font-size:1.2rem;">
+        </div>
+        <div class="form-group">
+            <label>Catégorie</label>
+            <input type="text" name="category" list="dl-pcat" placeholder="ex: légume-feuille">
+            <datalist id="dl-pcat">{% for c in categories %}<option value="{{ c }}">{% endfor %}</datalist>
+        </div>
+        <div class="form-group"><label>Unité</label><input type="text" name="unit" value="kg" required></div>
+        <div class="form-group"><label>Poids unitaire (kg)</label><input type="number" name="unit_weight_kg" step="0.001" min="0"></div>
+        <div class="form-group"><label>Volume unitaire (L)</label><input type="number" name="unit_volume_l" step="0.001" min="0"></div>
+        <div class="form-group"><label>Prix indicatif (€)</label><input type="number" name="default_price" step="0.01" min="0"></div>
+        <div class="form-group" style="grid-column: 1 / -1;"><label>Description</label><input type="text" name="description"></div>
+        <button type="submit" class="btn btn-primary btn-sm">Créer</button>
+    </form>
+    <p style="margin-top:8px;color:var(--text-muted);font-size:0.78rem;">
+        Laissez l'emoji vide pour qu'il soit auto-détecté à partir du nom (ex. <em>fraises</em> → 🍓).
+    </p>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>{{ products|length }} produit(s)</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th></th><th>Nom</th><th>Catégorie</th><th>Unité</th><th>Poids/u</th><th>Vol/u</th><th>Prix indicatif</th><th>Actif</th><th>Actions</th></tr>
+            {% for p in products %}
+            <tr>
+                <td style="font-size:1.4rem;text-align:center;width:40px;">
+                    <form action="{{ url_for('products.update', pid=p.id) }}" method="POST" id="prod-{{ p.id }}"></form>
+                    <input form="prod-{{ p.id }}" name="emoji" value="{{ p.emoji or '' }}"
+                           maxlength="10" placeholder="{{ p.emoji_effective }}"
+                           style="width:48px;text-align:center;font-size:1.2rem;">
+                </td>
+                <td>
+                    <input form="prod-{{ p.id }}" name="name" value="{{ p.name }}" required>
+                </td>
+                <td><input form="prod-{{ p.id }}" name="category" value="{{ p.category or '' }}" list="dl-pcat"></td>
+                <td><input form="prod-{{ p.id }}" name="unit" value="{{ p.unit }}" style="width:60px;"></td>
+                <td><input form="prod-{{ p.id }}" name="unit_weight_kg" type="number" step="0.001" min="0" value="{{ p.unit_weight_kg or '' }}" style="width:80px;"></td>
+                <td><input form="prod-{{ p.id }}" name="unit_volume_l" type="number" step="0.001" min="0" value="{{ p.unit_volume_l or '' }}" style="width:80px;"></td>
+                <td><input form="prod-{{ p.id }}" name="default_price" type="number" step="0.01" min="0" value="{{ p.default_price or '' }}" style="width:80px;"></td>
+                <td><input form="prod-{{ p.id }}" type="checkbox" name="is_active" {% if p.is_active %}checked{% endif %}></td>
+                <td style="white-space:nowrap;">
+                    <button form="prod-{{ p.id }}" class="btn btn-primary btn-sm" type="submit">Sauver</button>
+                    {% if is_admin and is_admin() %}
+                    <form action="{{ url_for('products.delete', pid=p.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Supprimer définitivement ?');">
+                        <button class="btn btn-danger btn-sm">Suppr</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+{% endblock %}

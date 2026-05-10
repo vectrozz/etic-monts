@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Introuvable{% endblock %}
+{% block content %}
+<div class="page-header"><h1>404 — Page introuvable</h1><p class="subtitle">Ce contenu n'existe pas (ou plus).</p></div>
+<a href="{{ url_for('farm.dashboard') }}" class="btn btn-secondary btn-sm">Retour</a>
+{% endblock %}
+{% block auth_content %}
+<div class="auth-card">
+    <h1 style="font-size:2rem;color:var(--accent);">404</h1>
+    <p style="text-align:center;color:var(--text-muted);margin:12px 0;">Page introuvable</p>
+    <a href="{{ url_for('main.home') }}" class="btn btn-primary btn-block">Retour à l'accueil</a>
+</div>
+{% endblock %}

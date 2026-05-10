@@ -21,6 +21,10 @@ services:
     env_file: .env
     environment:
       - FLASK_ENV=production
+    volumes:
+      # Persist user-uploaded files (profile photos, etc.). Both the app and
+      # nginx see them through their own mount point.
+      - ./static/uploads:/app/static/uploads
     networks:
       - front-db
     expose:

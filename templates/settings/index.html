@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Livraison — Réglages{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Livraison</h1>
+    <p class="subtitle">Tournées récurrentes, tournées exceptionnelles et paramètres globaux</p>
+</div>
+
+{% set cycle = settings.get('delivery_cycle', {}) %}
+{% set horizon = (settings.get('client_max_upcoming_slots') or {}).get('value', 2) %}
+
+<div class="card">
+    <div class="card-header">
+        <h2>Tournées récurrentes</h2>
+        <span class="card-badge">{{ recurrent_deliveries|length }} règle(s)</span>
+    </div>
+    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:12px;">
+        Chaque ligne définit un jour de livraison hebdomadaire (ex. Mardi, Vendredi)
+        avec son propre jour/horaire de clôture des commandes et ses valeurs par défaut.
+    </p>
+
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>Nom</th><th>Jour livraison</th><th>Jour clôture</th><th>Heure</th>
+            <th>Chauffeur</th><th>Véhicule</th><th>Capacité kg / L</th><th>Actif</th><th>Actions</th>
+        </tr>
+        {% for r in recurrent_deliveries %}
+        <tr>
+            <form id="rd-{{ r.id }}" action="{{ url_for('settings.recurrent_update', rid=r.id) }}" method="POST"></form>
+            <td><input form="rd-{{ r.id }}" name="name" value="{{ r.name }}" required></td>
+            <td>
+                <select form="rd-{{ r.id }}" name="weekday">
+                    {% for d, lbl in weekday_choices %}<option value="{{ d }}" {% if d == r.weekday %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                </select>
+            </td>
+            <td>
+                <select form="rd-{{ r.id }}" name="cutoff_weekday">
+                    {% for d, lbl in weekday_choices %}<option value="{{ d }}" {% if d == r.cutoff_weekday %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+                </select>
+            </td>
+            <td><input form="rd-{{ r.id }}" type="time" name="cutoff_time" value="{{ r.cutoff_time.strftime('%H:%M') if r.cutoff_time.strftime is defined else r.cutoff_time }}" style="width:90px;"></td>
+            <td><input form="rd-{{ r.id }}" name="default_driver" value="{{ r.default_driver or '' }}"></td>
+            <td><input form="rd-{{ r.id }}" name="default_vehicle" value="{{ r.default_vehicle or '' }}"></td>
+            <td>
+                <input form="rd-{{ r.id }}" type="number" step="0.1" min="0" name="vehicle_max_weight_kg" value="{{ r.vehicle_max_weight_kg or '' }}" style="width:80px;" placeholder="kg">
+                <input form="rd-{{ r.id }}" type="number" step="0.1" min="0" name="vehicle_max_volume_l" value="{{ r.vehicle_max_volume_l or '' }}" style="width:80px;" placeholder="L">
+            </td>
+            <td>
+                <input form="rd-{{ r.id }}" type="checkbox" name="is_active" {% if r.is_active %}checked{% endif %}>
+            </td>
+            <td>
+                <button form="rd-{{ r.id }}" type="submit" class="btn btn-primary btn-sm">Sauver</button>
+                <form action="{{ url_for('settings.recurrent_delete', rid=r.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Supprimer cette livraison récurrente ?');">
+                    <button class="btn btn-danger btn-sm" type="submit">Suppr</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+
+    <h3 style="margin-top:24px;color:var(--accent);font-size:0.95rem;">Ajouter une livraison récurrente</h3>
+    <form action="{{ url_for('settings.recurrent_create') }}" method="POST" class="form-grid">
+        <div class="form-group"><label>Nom</label><input type="text" name="name" required placeholder="ex: Tournée Mardi"></div>
+        <div class="form-group">
+            <label>Jour de livraison</label>
+            <select name="weekday" required>
+                {% for d, lbl in weekday_choices %}<option value="{{ d }}">{{ lbl }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Jour de clôture</label>
+            <select name="cutoff_weekday" required>
+                {% for d, lbl in weekday_choices %}<option value="{{ d }}">{{ lbl }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Heure clôture</label><input type="time" name="cutoff_time" value="20:00"></div>
+        <div class="form-group"><label>Chauffeur par défaut</label><input type="text" name="default_driver"></div>
+        <div class="form-group"><label>Véhicule par défaut</label><input type="text" name="default_vehicle"></div>
+        <div class="form-group"><label>Capacité poids (kg)</label><input type="number" step="0.1" min="0" name="vehicle_max_weight_kg"></div>
+        <div class="form-group"><label>Capacité volume (L)</label><input type="number" step="0.1" min="0" name="vehicle_max_volume_l"></div>
+        <div class="form-group" style="grid-column: 1 / -1;"><label>Adresse de départ (dépôt)</label><input type="text" name="start_address"></div>
+        <div class="form-group"><label>Lat dépôt</label><input type="number" step="0.000001" name="start_lat"></div>
+        <div class="form-group"><label>Lng dépôt</label><input type="number" step="0.000001" name="start_lng"></div>
+        <div class="form-group">
+            <label class="checkbox-pill"><input type="checkbox" name="is_active" checked> Actif</label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Tournées exceptionnelles (date unique)</h2>
+        <span class="card-badge">{{ tournees|length }} tournée(s)</span>
+    </div>
+    <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:12px;">
+        Pour une livraison ponctuelle hors planning hebdomadaire (jour férié décalé,
+        marché spécial, etc.). Cliquez sur le détail pour assigner les commandes
+        et optimiser l'itinéraire.
+    </p>
+
+    {% if tournees %}
+    <div class="table-wrapper">
+    <table>
+        <tr>
+            <th>Date livraison</th><th>Nom</th><th>Chauffeur</th><th>Véhicule</th>
+            <th>Statut</th><th>Arrêts</th><th>Actions</th>
+        </tr>
+        {% for t in tournees %}
+        <tr>
+            <td>{{ t.delivery_date }}</td>
+            <td>{{ t.name }}</td>
+            <td>{{ t.driver or '—' }}</td>
+            <td>{{ t.vehicle or '—' }}</td>
+            <td><span class="role-pill role-{{ t.status }}">{{ t.status }}</span></td>
+            <td>{{ t.stop_count }}</td>
+            <td>
+                <a href="{{ url_for('tournees.detail', tid=t.id) }}" class="btn btn-secondary btn-sm">Détail</a>
+                <form action="{{ url_for('tournees.delete', tid=t.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Supprimer cette tournée ?');">
+                    <button class="btn btn-danger btn-sm" type="submit">Suppr</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+    {% endif %}
+
+    <h3 style="margin-top:24px;color:var(--accent);font-size:0.95rem;">Créer une tournée exceptionnelle</h3>
+    <form action="{{ url_for('tournees.create') }}" method="POST" class="form-grid">
+        <div class="form-group"><label>Nom</label><input type="text" name="name" required placeholder="ex: Marché de Noël"></div>
+        <div class="form-group"><label>Date livraison</label><input type="date" name="delivery_date" required></div>
+        <div class="form-group"><label>Chauffeur</label><input type="text" name="driver"></div>
+        <div class="form-group"><label>Véhicule</label><input type="text" name="vehicle"></div>
+        <div class="form-group" style="grid-column: 1 / -1;"><label>Adresse de départ (dépôt)</label><input type="text" name="start_address"></div>
+        <div class="form-group"><label>Lat dépôt</label><input type="number" name="start_lat" step="0.000001"></div>
+        <div class="form-group"><label>Lng dépôt</label><input type="number" name="start_lng" step="0.000001"></div>
+        <div class="form-group" style="grid-column: 1 / -1;"><label>Notes</label><input type="text" name="notes"></div>
+        <button type="submit" class="btn btn-primary btn-sm">Créer la tournée</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Horizon de commande client</h2></div>
+    <form action="{{ url_for('settings.update_client_horizon') }}" method="POST" class="form-grid">
+        <div class="form-group">
+            <label>Nombre de prochaines livraisons accessibles aux clients</label>
+            <input type="number" min="1" max="20" step="1" name="client_max_upcoming_slots" value="{{ horizon }}">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+        <p class="form-group" style="grid-column: 1 / -1;color:var(--text-muted);font-size:0.78rem;">
+            Le client ne pourra commander que pour les <strong>{{ horizon }}</strong> prochaines livraisons.
+        </p>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Plafonds &amp; politique globale</h2></div>
+    <form action="{{ url_for('settings.update_cycle') }}" method="POST" class="form-grid">
+        <div class="form-group">
+            <label>Capacité véhicule (kg) — défaut global</label>
+            <input type="number" name="vehicle_max_weight_kg" step="0.1" min="0"
+                   value="{{ cycle.get('vehicle_max_weight_kg', 0) }}">
+        </div>
+        <div class="form-group">
+            <label>Capacité véhicule (L) — défaut global</label>
+            <input type="number" name="vehicle_max_volume_l" step="0.1" min="0"
+                   value="{{ cycle.get('vehicle_max_volume_l', 0) }}">
+        </div>
+        <div class="form-group">
+            <label>Montant minimum de commande (€)</label>
+            <input type="number" name="min_order_amount" step="0.01" min="0"
+                   value="{{ cycle.get('min_order_amount', 0) }}">
+        </div>
+        <div class="form-group">
+            <label class="checkbox-pill">
+                <input type="checkbox" name="client_can_cancel"
+                       {% if cycle.get('client_can_cancel', True) %}checked{% endif %}>
+                Le client peut annuler sa commande
+            </label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+    </form>
+</div>
+
+{% set branding_cfg = settings.get('branding', {}) %}
+<div class="card">
+    <div class="card-header"><h2>Identité</h2></div>
+    <form action="{{ url_for('settings.update_branding') }}" method="POST" class="form-grid">
+        <div class="form-group"><label>Nom</label><input type="text" name="name" value="{{ branding_cfg.get('name', 'Etic Monts') }}"></div>
+        <div class="form-group"><label>Sous-titre</label><input type="text" name="subtitle" value="{{ branding_cfg.get('subtitle','') }}"></div>
+        <div class="form-group"><label>Email support</label><input type="email" name="support_email" value="{{ branding_cfg.get('support_email','') }}"></div>
+        <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Édition JSON brute (avancé)</h2></div>
+    <form action="{{ url_for('settings.update_raw') }}" method="POST" class="form-grid">
+        <div class="form-group"><label>Clé</label><input type="text" name="key" placeholder="ex: delivery_cycle"></div>
+        <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Valeur (JSON)</label>
+            <textarea name="value" rows="6" style="width:100%;font-family:monospace;"></textarea>
+        </div>
+        <button type="submit" class="btn btn-danger btn-sm">Sauver (écrase)</button>
+    </form>
+    <details style="margin-top:16px;">
+        <summary style="cursor:pointer;color:var(--accent);">Voir tous les réglages actuels</summary>
+        <pre style="margin-top:8px;font-size:0.78rem;background:var(--bg-input);padding:12px;border-radius:6px;overflow:auto;">{{ settings|tojson(indent=2) }}</pre>
+    </details>
+</div>
+{% endblock %}

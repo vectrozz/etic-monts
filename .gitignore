@@ -5,4 +5,7 @@ __pycache__/
 
 .env
 
+# user-uploaded content
+static/uploads/
+
 

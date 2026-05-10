@@ -1,30 +1,62 @@
 {% extends "base.html" %}
-{% block title %}Tableau de bord — Etic'Monts{% endblock %}
+{% block title %}Tableau de bord — {{ branding.name or "Etic'Monts" }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <h1>Tableau de bord</h1>
     {% if ferme|length > 0 %}
     <p class="subtitle">Ferme <strong>{{ ferme[0][1] }}</strong> — {{ ferme[0][2] }}</p>
-    <span class="farm-badge">Membre EMB depuis {{ ferme[0][3] }}</span>
+    <span class="farm-badge">Membre depuis {{ ferme[0][3] }}</span>
     {% endif %}
 </div>
 
-<div class="instructions">
-    <strong>Mode d'emploi :</strong> Chaque section contient un tableau par année. Remplissez au moins 2 années (1ère année EMB et 2024).
-    Pour chaque année, remplissez <strong>d'abord Surface</strong> puis <strong>Biodiversité</strong> pour un calcul correct du score.
-    La surface totale est calculée automatiquement.
+{% if upcoming_slots %}
+<div class="cycle-strip">
+    <span class="cycle-strip-label">Prochaines livraisons :</span>
+    {% for s in upcoming_slots %}
+    <span class="cycle-pill {{ 'open' if s.is_open else 'closed' }}">
+        <strong>{{ s.label }}</strong>
+        <small>{% if s.is_open %}Commandes ouvertes{% else %}Commandes closes{% endif %}</small>
+    </span>
+    {% endfor %}
 </div>
+{% endif %}
+
+<div class="instructions">
+    <strong>Mode d'emploi :</strong> Chaque section contient un tableau par année. Remplissez au moins 2 années (1ère année EMB et l'année courante).
+    Pour chaque année, remplissez <strong>d'abord Surface</strong> puis <strong>Biodiversité</strong> pour un calcul correct du score.
+    Les champs textuels proposent un menu déroulant avec les valeurs déjà saisies par d'autres utilisateurs &mdash;
+    profitez-en pour <a href="{{ url_for('catalog.index') }}">enrichir le catalogue partagé</a>.
+</div>
+
+{# ---------- Pre-build datalists from catalog ---------- #}
+{% set cat = catalog or {} %}
+{% macro datalist(name) %}
+<datalist id="dl-{{ name }}">
+    {% for v in cat.get(name, []) %}<option value="{{ v }}">{% endfor %}
+</datalist>
+{% endmacro %}
+{{ datalist('paillage') }}
+{{ datalist('limitation_plastique') }}
+{{ datalist('emballage') }}
+{{ datalist('analyse_sol') }}
+{{ datalist('formation_sol') }}
+{{ datalist('pratique_sol') }}
+{{ datalist('irrigation') }}
+{{ datalist('action_eau') }}
+{{ datalist('lutte_achat') }}
+{{ datalist('lutte_favorisation') }}
+{{ datalist('lutte_formation') }}
 
 <!-- Section Tabs -->
 <div class="section-tabs">
-    <button class="section-tab active" onclick="showSection('surface')">Surface</button>
-    <button class="section-tab" onclick="showSection('biodiv')">Biodiversité</button>
-    <button class="section-tab" onclick="showSection('plastique')">Plastique</button>
-    <button class="section-tab" onclick="showSection('soil')">Sol</button>
-    <button class="section-tab" onclick="showSection('water')">Eau</button>
-    <button class="section-tab" onclick="showSection('lutte')">Lutte intégrée</button>
-    <button class="section-tab" onclick="showSection('charts')">Graphiques</button>
+    <button class="section-tab active" onclick="showSection(event,'surface')">Surface</button>
+    <button class="section-tab" onclick="showSection(event,'biodiv')">Biodiversité</button>
+    <button class="section-tab" onclick="showSection(event,'plastique')">Plastique</button>
+    <button class="section-tab" onclick="showSection(event,'soil')">Sol</button>
+    <button class="section-tab" onclick="showSection(event,'water')">Eau</button>
+    <button class="section-tab" onclick="showSection(event,'lutte')">Lutte intégrée</button>
+    <button class="section-tab" onclick="showSection(event,'charts')">Graphiques</button>
 </div>
 
 <!-- ==================== SURFACE ==================== -->
@@ -38,63 +70,25 @@
         <table>
             <tr>
                 <th class="row-label">Champ</th>
-                {% for row in surfaces %}
-                <th>{{ row[1] }}</th>
-                {% endfor %}
+                {% for row in surfaces %}<th>{{ row[1] }}</th>{% endfor %}
                 <th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th>
             </tr>
             <tr class="row-total">
                 <td class="row-label"><strong>Surface Totale Ferme</strong></td>
-                {% for row in surfaces %}
-                <td><strong>{{ row[2] }}</strong></td>
-                {% endfor %}
+                {% for row in surfaces %}<td><strong>{{ row[2] }}</strong></td>{% endfor %}
                 <td><input type="number" id="surftot_display" class="computed-field" readonly tabindex="-1" value="0"></td>
             </tr>
-            <tr>
-                <td class="row-label">Fruits Rouges / PPAM</td>
-                {% for row in surfaces %}<td>{{ row[3] }}</td>{% endfor %}
-                <td><input type="number" form="form-surf" name="surffr" step="0.0001" min="0" required class="surf-input"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Gros Fruits</td>
-                {% for row in surfaces %}<td>{{ row[4] }}</td>{% endfor %}
-                <td><input type="number" form="form-surf" name="surfgf" step="0.0001" min="0" required class="surf-input"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Légumes</td>
-                {% for row in surfaces %}<td>{{ row[5] }}</td>{% endfor %}
-                <td><input type="number" form="form-surf" name="surfleg" step="0.0001" min="0" required class="surf-input"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Prairies Permanentes</td>
-                {% for row in surfaces %}<td>{{ row[6] }}</td>{% endfor %}
-                <td><input type="number" form="form-surf" name="prairie" step="0.0001" min="0" required class="surf-input"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Cultures & Prairies Temp.</td>
-                {% for row in surfaces %}<td>{{ row[7] }}</td>{% endfor %}
-                <td><input type="number" form="form-surf" name="culture" step="0.0001" min="0" required class="surf-input"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Autres (forêts, étang...)</td>
-                {% for row in surfaces %}<td>{{ row[8] }}</td>{% endfor %}
-                <td><input type="number" form="form-surf" name="surfautre" step="0.0001" min="0" required class="surf-input"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Année</td>
-                {% for row in surfaces %}<td>{{ row[1] }}</td>{% endfor %}
-                <td><input type="number" form="form-surf" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td>
-            </tr>
+            <tr><td class="row-label">Fruits Rouges / PPAM</td>{% for row in surfaces %}<td>{{ row[3] }}</td>{% endfor %}<td><input type="number" form="form-surf" name="surffr" step="0.0001" min="0" required class="surf-input"></td></tr>
+            <tr><td class="row-label">Gros Fruits</td>{% for row in surfaces %}<td>{{ row[4] }}</td>{% endfor %}<td><input type="number" form="form-surf" name="surfgf" step="0.0001" min="0" required class="surf-input"></td></tr>
+            <tr><td class="row-label">Légumes</td>{% for row in surfaces %}<td>{{ row[5] }}</td>{% endfor %}<td><input type="number" form="form-surf" name="surfleg" step="0.0001" min="0" required class="surf-input"></td></tr>
+            <tr><td class="row-label">Prairies Permanentes</td>{% for row in surfaces %}<td>{{ row[6] }}</td>{% endfor %}<td><input type="number" form="form-surf" name="prairie" step="0.0001" min="0" required class="surf-input"></td></tr>
+            <tr><td class="row-label">Cultures & Prairies Temp.</td>{% for row in surfaces %}<td>{{ row[7] }}</td>{% endfor %}<td><input type="number" form="form-surf" name="culture" step="0.0001" min="0" required class="surf-input"></td></tr>
+            <tr><td class="row-label">Autres</td>{% for row in surfaces %}<td>{{ row[8] }}</td>{% endfor %}<td><input type="number" form="form-surf" name="surfautre" step="0.0001" min="0" required class="surf-input"></td></tr>
+            <tr><td class="row-label">Année</td>{% for row in surfaces %}<td>{{ row[1] }}</td>{% endfor %}<td><input type="number" form="form-surf" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td></tr>
             <tr>
                 <td class="row-label">Actions</td>
-                {% for row in surfaces %}
-                <td><a href="{{ url_for('delete_row', table='surface', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer cette année ?');">Suppr</a></td>
-                {% endfor %}
-                <td>
-                    <form id="form-surf" action="{{ url_for('addsurf') }}" method="POST">
-                        <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
-                    </form>
-                </td>
+                {% for row in surfaces %}<td><a href="{{ url_for('farm.delete_row', table='surface', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer cette année ?');">Suppr</a></td>{% endfor %}
+                <td><form id="form-surf" action="{{ url_for('farm.addsurf') }}" method="POST"><button type="submit" class="btn btn-primary btn-sm">Ajouter</button></form></td>
             </tr>
         </table>
     </div>
@@ -110,176 +104,59 @@
     </div>
     <div class="table-wrapper">
         <table>
-            <tr>
-                <th class="row-label">Champ</th>
-                {% for row in biodiv %}<th>{{ row[1] }}</th>{% endfor %}
-                <th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th>
-            </tr>
-            <tr>
-                <td class="row-label">Haies - mètre linéaire [m]</td>
-                {% for row in biodiv %}<td>{{ row[2] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="haie" step="0.0001" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Alignement d'arbres [m]</td>
-                {% for row in biodiv %}<td>{{ row[3] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="arbrealign" step="0.0001" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Arbres isolés [nb]</td>
-                {% for row in biodiv %}<td>{{ row[4] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="arbreseul" step="0.0001" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Bosquets [m²]</td>
-                {% for row in biodiv %}<td>{{ row[5] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="bosquet" step="0.0001" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Mares [m²]</td>
-                {% for row in biodiv %}<td>{{ row[6] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="mare" step="0.0001" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Fossés [m]</td>
-                {% for row in biodiv %}<td>{{ row[7] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="fosse" step="0.0001" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Bordures [m]</td>
-                {% for row in biodiv %}<td>{{ row[8] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="bordure" step="0.0001" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Jachères [m²]</td>
-                {% for row in biodiv %}<td>{{ row[9] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="jachere" step="0.0001" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Jachères mellifères [m²]</td>
-                {% for row in biodiv %}<td>{{ row[10] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="jacheremel" step="0.0001" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Murets [m]</td>
-                {% for row in biodiv %}<td>{{ row[11] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="muret" step="0.0001" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Description</td>
-                {% for row in biodiv %}<td style="white-space:normal;max-width:150px;">{{ row[12] or '' }}</td>{% endfor %}
-                <td><input type="text" form="form-biodiv" name="description"></td>
-            </tr>
-            <tr class="row-total">
-                <td class="row-label"><strong>Biodiv Score</strong></td>
-                {% for row in biodiv %}<td><strong>{{ row[13] }}</strong></td>{% endfor %}
-                <td>—</td>
-            </tr>
-            <tr>
-                <td class="row-label">Année</td>
-                {% for row in biodiv %}<td>{{ row[1] }}</td>{% endfor %}
-                <td><input type="number" form="form-biodiv" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td>
-            </tr>
+            <tr><th class="row-label">Champ</th>{% for row in biodiv %}<th>{{ row[1] }}</th>{% endfor %}<th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th></tr>
+            <tr><td class="row-label">Haies - mètre linéaire [m]</td>{% for row in biodiv %}<td>{{ row[2] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="haie" step="0.0001" min="0" required></td></tr>
+            <tr><td class="row-label">Alignement d'arbres [m]</td>{% for row in biodiv %}<td>{{ row[3] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="arbrealign" step="0.0001" min="0" required></td></tr>
+            <tr><td class="row-label">Arbres isolés [nb]</td>{% for row in biodiv %}<td>{{ row[4] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="arbreseul" step="0.0001" min="0" required></td></tr>
+            <tr><td class="row-label">Bosquets [m²]</td>{% for row in biodiv %}<td>{{ row[5] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="bosquet" step="0.0001" min="0" required></td></tr>
+            <tr><td class="row-label">Mares [m²]</td>{% for row in biodiv %}<td>{{ row[6] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="mare" step="0.0001" min="0" required></td></tr>
+            <tr><td class="row-label">Fossés [m]</td>{% for row in biodiv %}<td>{{ row[7] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="fosse" step="0.0001" min="0" required></td></tr>
+            <tr><td class="row-label">Bordures [m]</td>{% for row in biodiv %}<td>{{ row[8] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="bordure" step="0.0001" min="0" required></td></tr>
+            <tr><td class="row-label">Jachères [m²]</td>{% for row in biodiv %}<td>{{ row[9] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="jachere" step="0.0001" min="0" required></td></tr>
+            <tr><td class="row-label">Jachères mellifères [m²]</td>{% for row in biodiv %}<td>{{ row[10] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="jacheremel" step="0.0001" min="0" required></td></tr>
+            <tr><td class="row-label">Murets [m]</td>{% for row in biodiv %}<td>{{ row[11] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="muret" step="0.0001" min="0" required></td></tr>
+            <tr><td class="row-label">Description</td>{% for row in biodiv %}<td style="white-space:normal;max-width:150px;">{{ row[12] or '' }}</td>{% endfor %}<td><input type="text" form="form-biodiv" name="description"></td></tr>
+            <tr class="row-total"><td class="row-label"><strong>Biodiv Score</strong></td>{% for row in biodiv %}<td><strong>{{ row[13] }}</strong></td>{% endfor %}<td>—</td></tr>
+            <tr><td class="row-label">Année</td>{% for row in biodiv %}<td>{{ row[1] }}</td>{% endfor %}<td><input type="number" form="form-biodiv" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td></tr>
             <tr>
                 <td class="row-label">Actions</td>
-                {% for row in biodiv %}
-                <td><a href="{{ url_for('delete_row', table='biodiv', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer cette année ?');">Suppr</a></td>
-                {% endfor %}
-                <td>
-                    <form id="form-biodiv" action="{{ url_for('addbiodiv') }}" method="POST">
-                        <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
-                    </form>
-                </td>
+                {% for row in biodiv %}<td><a href="{{ url_for('farm.delete_row', table='biodiv', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer cette année ?');">Suppr</a></td>{% endfor %}
+                <td><form id="form-biodiv" action="{{ url_for('farm.addbiodiv') }}" method="POST"><button type="submit" class="btn btn-primary btn-sm">Ajouter</button></form></td>
             </tr>
         </table>
     </div>
+</div>
+
+{# Inline biodiv chart so the user no longer has to switch tabs #}
+<div class="chart-container">
+    <h3>Évolution du Score Biodiversité</h3>
+    <canvas id="biodivInlineChart"></canvas>
 </div>
 </div>
 
 <!-- ==================== PLASTIQUE ==================== -->
 <div class="data-section" id="section-plastique">
 <div class="card">
-    <div class="card-header">
-        <h2>Limitation Plastique</h2>
-        <span class="card-badge">{{ plastique|length }} année{{ 's' if plastique|length > 1 else '' }}</span>
-    </div>
+    <div class="card-header"><h2>Limitation Plastique</h2><span class="card-badge">{{ plastique|length }} année{{ 's' if plastique|length > 1 else '' }}</span></div>
     <div class="table-wrapper">
         <table>
-            <tr>
-                <th class="row-label">Champ</th>
-                {% for row in plastique %}<th>{{ row[1] }}</th>{% endfor %}
-                <th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th>
-            </tr>
-            <tr>
-                <td class="row-label">Surface bâches plastique [m²]</td>
-                {% for row in plastique %}<td>{{ row[2] }}</td>{% endfor %}
-                <td><input type="number" form="form-plastic" name="surftotplast" step="0.01" min="0"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Surface toiles tissées [m²]</td>
-                {% for row in plastique %}<td>{{ row[3] }}</td>{% endfor %}
-                <td><input type="number" form="form-plastic" name="surftottoile" step="0.01" min="0"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Paillage fruits rouges</td>
-                {% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[4] }}</td>{% endfor %}
-                <td><input type="text" form="form-plastic" name="paillagefr"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Paillage gros fruits</td>
-                {% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[5] }}</td>{% endfor %}
-                <td><input type="text" form="form-plastic" name="paillagegf"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Paillage légumes</td>
-                {% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[6] }}</td>{% endfor %}
-                <td><input type="text" form="form-plastic" name="paillageleg"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Moyens de limitation</td>
-                {% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[7] }}</td>{% endfor %}
-                <td><input type="text" form="form-plastic" name="limitation"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Emballages plastiques (O/N)</td>
-                {% for row in plastique %}<td>{{ row[8] }}</td>{% endfor %}
-                <td><input type="text" form="form-plastic" name="embplast"></td>
-            </tr>
-            <tr>
-                <td class="row-label">% emballage plastique</td>
-                {% for row in plastique %}<td>{{ row[9] }}</td>{% endfor %}
-                <td><input type="number" form="form-plastic" name="embplastpourcent" step="0.01" min="0" max="100"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Emballages fruits rouges</td>
-                {% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[10] }}</td>{% endfor %}
-                <td><input type="text" form="form-plastic" name="embfr"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Emballages gros fruits</td>
-                {% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[11] }}</td>{% endfor %}
-                <td><input type="text" form="form-plastic" name="embgf"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Emballages légumes</td>
-                {% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[12] }}</td>{% endfor %}
-                <td><input type="text" form="form-plastic" name="embleg"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Année</td>
-                {% for row in plastique %}<td>{{ row[1] }}</td>{% endfor %}
-                <td><input type="number" form="form-plastic" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td>
-            </tr>
+            <tr><th class="row-label">Champ</th>{% for row in plastique %}<th>{{ row[1] }}</th>{% endfor %}<th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th></tr>
+            <tr><td class="row-label">Surface bâches plastique [m²]</td>{% for row in plastique %}<td>{{ row[2] }}</td>{% endfor %}<td><input type="number" form="form-plastic" name="surftotplast" step="0.01" min="0"></td></tr>
+            <tr><td class="row-label">Surface toiles tissées [m²]</td>{% for row in plastique %}<td>{{ row[3] }}</td>{% endfor %}<td><input type="number" form="form-plastic" name="surftottoile" step="0.01" min="0"></td></tr>
+            <tr><td class="row-label">Paillage fruits rouges</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[4] }}</td>{% endfor %}<td><input type="text" list="dl-paillage" form="form-plastic" name="paillagefr" data-catalog-category="paillage"></td></tr>
+            <tr><td class="row-label">Paillage gros fruits</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[5] }}</td>{% endfor %}<td><input type="text" list="dl-paillage" form="form-plastic" name="paillagegf" data-catalog-category="paillage"></td></tr>
+            <tr><td class="row-label">Paillage légumes</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[6] }}</td>{% endfor %}<td><input type="text" list="dl-paillage" form="form-plastic" name="paillageleg" data-catalog-category="paillage"></td></tr>
+            <tr><td class="row-label">Moyens de limitation</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[7] }}</td>{% endfor %}<td><input type="text" list="dl-limitation_plastique" form="form-plastic" name="limitation" data-catalog-category="limitation_plastique"></td></tr>
+            <tr><td class="row-label">Emballages plastiques (O/N)</td>{% for row in plastique %}<td>{{ row[8] }}</td>{% endfor %}<td><input type="text" list="dl-emballage" form="form-plastic" name="embplast" data-catalog-category="emballage"></td></tr>
+            <tr><td class="row-label">% emballage plastique</td>{% for row in plastique %}<td>{{ row[9] }}</td>{% endfor %}<td><input type="number" form="form-plastic" name="embplastpourcent" step="0.01" min="0" max="100"></td></tr>
+            <tr><td class="row-label">Emballages fruits rouges</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[10] }}</td>{% endfor %}<td><input type="text" list="dl-emballage" form="form-plastic" name="embfr" data-catalog-category="emballage"></td></tr>
+            <tr><td class="row-label">Emballages gros fruits</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[11] }}</td>{% endfor %}<td><input type="text" list="dl-emballage" form="form-plastic" name="embgf" data-catalog-category="emballage"></td></tr>
+            <tr><td class="row-label">Emballages légumes</td>{% for row in plastique %}<td style="white-space:normal;max-width:150px;">{{ row[12] }}</td>{% endfor %}<td><input type="text" list="dl-emballage" form="form-plastic" name="embleg" data-catalog-category="emballage"></td></tr>
+            <tr><td class="row-label">Année</td>{% for row in plastique %}<td>{{ row[1] }}</td>{% endfor %}<td><input type="number" form="form-plastic" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td></tr>
             <tr>
                 <td class="row-label">Actions</td>
-                {% for row in plastique %}
-                <td><a href="{{ url_for('delete_row', table='plastique', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer cette année ?');">Suppr</a></td>
-                {% endfor %}
-                <td>
-                    <form id="form-plastic" action="{{ url_for('addplastic') }}" method="POST">
-                        <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
-                    </form>
-                </td>
+                {% for row in plastique %}<td><a href="{{ url_for('farm.delete_row', table='plastique', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer ?');">Suppr</a></td>{% endfor %}
+                <td><form id="form-plastic" action="{{ url_for('farm.addplastic') }}" method="POST"><button type="submit" class="btn btn-primary btn-sm">Ajouter</button></form></td>
             </tr>
         </table>
     </div>
@@ -289,52 +166,19 @@
 <!-- ==================== SOL ==================== -->
 <div class="data-section" id="section-soil">
 <div class="card">
-    <div class="card-header">
-        <h2>Sol</h2>
-        <span class="card-badge">{{ soil|length }} année{{ 's' if soil|length > 1 else '' }}</span>
-    </div>
+    <div class="card-header"><h2>Sol</h2><span class="card-badge">{{ soil|length }} année{{ 's' if soil|length > 1 else '' }}</span></div>
     <div class="table-wrapper">
         <table>
-            <tr>
-                <th class="row-label">Champ</th>
-                {% for row in soil %}<th>{{ row[1] }}</th>{% endfor %}
-                <th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th>
-            </tr>
-            <tr>
-                <td class="row-label">Analyses de sol / taux MO</td>
-                {% for row in soil %}<td style="white-space:normal;max-width:180px;">{{ row[2] }}</td>{% endfor %}
-                <td><input type="text" form="form-soil" name="analyse"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Connaissance du sol /10</td>
-                {% for row in soil %}<td>{{ row[3] }}</td>{% endfor %}
-                <td><input type="number" form="form-soil" name="connaissance" min="0" max="10" step="1"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Formations suivies</td>
-                {% for row in soil %}<td style="white-space:normal;max-width:180px;">{{ row[4] }}</td>{% endfor %}
-                <td><input type="text" form="form-soil" name="formation"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Pratiques conservation sol</td>
-                {% for row in soil %}<td style="white-space:normal;max-width:180px;">{{ row[5] }}</td>{% endfor %}
-                <td><input type="text" form="form-soil" name="pratique"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Année</td>
-                {% for row in soil %}<td>{{ row[1] }}</td>{% endfor %}
-                <td><input type="number" form="form-soil" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td>
-            </tr>
+            <tr><th class="row-label">Champ</th>{% for row in soil %}<th>{{ row[1] }}</th>{% endfor %}<th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th></tr>
+            <tr><td class="row-label">Analyses de sol / taux MO</td>{% for row in soil %}<td style="white-space:normal;max-width:180px;">{{ row[2] }}</td>{% endfor %}<td><input type="text" list="dl-analyse_sol" form="form-soil" name="analyse" data-catalog-category="analyse_sol"></td></tr>
+            <tr><td class="row-label">Connaissance du sol /10</td>{% for row in soil %}<td>{{ row[3] }}</td>{% endfor %}<td><input type="number" form="form-soil" name="connaissance" min="0" max="10" step="1"></td></tr>
+            <tr><td class="row-label">Formations suivies</td>{% for row in soil %}<td style="white-space:normal;max-width:180px;">{{ row[4] }}</td>{% endfor %}<td><input type="text" list="dl-formation_sol" form="form-soil" name="formation" data-catalog-category="formation_sol"></td></tr>
+            <tr><td class="row-label">Pratiques conservation sol</td>{% for row in soil %}<td style="white-space:normal;max-width:180px;">{{ row[5] }}</td>{% endfor %}<td><input type="text" list="dl-pratique_sol" form="form-soil" name="pratique" data-catalog-category="pratique_sol"></td></tr>
+            <tr><td class="row-label">Année</td>{% for row in soil %}<td>{{ row[1] }}</td>{% endfor %}<td><input type="number" form="form-soil" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td></tr>
             <tr>
                 <td class="row-label">Actions</td>
-                {% for row in soil %}
-                <td><a href="{{ url_for('delete_row', table='soil', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer cette année ?');">Suppr</a></td>
-                {% endfor %}
-                <td>
-                    <form id="form-soil" action="{{ url_for('addsoil') }}" method="POST">
-                        <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
-                    </form>
-                </td>
+                {% for row in soil %}<td><a href="{{ url_for('farm.delete_row', table='soil', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer ?');">Suppr</a></td>{% endfor %}
+                <td><form id="form-soil" action="{{ url_for('farm.addsoil') }}" method="POST"><button type="submit" class="btn btn-primary btn-sm">Ajouter</button></form></td>
             </tr>
         </table>
     </div>
@@ -344,57 +188,20 @@
 <!-- ==================== EAU ==================== -->
 <div class="data-section" id="section-water">
 <div class="card">
-    <div class="card-header">
-        <h2>Eau</h2>
-        <span class="card-badge">{{ water|length }} année{{ 's' if water|length > 1 else '' }}</span>
-    </div>
+    <div class="card-header"><h2>Eau</h2><span class="card-badge">{{ water|length }} année{{ 's' if water|length > 1 else '' }}</span></div>
     <div class="table-wrapper">
         <table>
-            <tr>
-                <th class="row-label">Champ</th>
-                {% for row in water %}<th>{{ row[1] }}</th>{% endfor %}
-                <th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th>
-            </tr>
-            <tr>
-                <td class="row-label">Irrigation Fruits Rouges</td>
-                {% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[2] }}</td>{% endfor %}
-                <td><input type="text" form="form-water" name="matosirrigfr" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Irrigation Gros Fruits</td>
-                {% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[3] }}</td>{% endfor %}
-                <td><input type="text" form="form-water" name="matosirriggf" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Irrigation Légumes</td>
-                {% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[4] }}</td>{% endfor %}
-                <td><input type="text" form="form-water" name="matosirrigleg" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Consommation annuelle [m³]</td>
-                {% for row in water %}<td>{{ row[5] }}</td>{% endfor %}
-                <td><input type="number" form="form-water" name="consoeau" min="0" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Actions limitation</td>
-                {% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[6] }}</td>{% endfor %}
-                <td><input type="text" form="form-water" name="actions"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Année</td>
-                {% for row in water %}<td>{{ row[1] }}</td>{% endfor %}
-                <td><input type="number" form="form-water" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td>
-            </tr>
+            <tr><th class="row-label">Champ</th>{% for row in water %}<th>{{ row[1] }}</th>{% endfor %}<th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th></tr>
+            <tr><td class="row-label">Irrigation Fruits Rouges</td>{% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[2] }}</td>{% endfor %}<td><input type="text" list="dl-irrigation" form="form-water" name="matosirrigfr" data-catalog-category="irrigation"></td></tr>
+            <tr><td class="row-label">Irrigation Gros Fruits</td>{% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[3] }}</td>{% endfor %}<td><input type="text" list="dl-irrigation" form="form-water" name="matosirriggf" data-catalog-category="irrigation"></td></tr>
+            <tr><td class="row-label">Irrigation Légumes</td>{% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[4] }}</td>{% endfor %}<td><input type="text" list="dl-irrigation" form="form-water" name="matosirrigleg" data-catalog-category="irrigation"></td></tr>
+            <tr><td class="row-label">Consommation annuelle [m³]</td>{% for row in water %}<td>{{ row[5] }}</td>{% endfor %}<td><input type="number" form="form-water" name="consoeau" min="0"></td></tr>
+            <tr><td class="row-label">Actions limitation</td>{% for row in water %}<td style="white-space:normal;max-width:150px;">{{ row[6] }}</td>{% endfor %}<td><input type="text" list="dl-action_eau" form="form-water" name="actions" data-catalog-category="action_eau"></td></tr>
+            <tr><td class="row-label">Année</td>{% for row in water %}<td>{{ row[1] }}</td>{% endfor %}<td><input type="number" form="form-water" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td></tr>
             <tr>
                 <td class="row-label">Actions</td>
-                {% for row in water %}
-                <td><a href="{{ url_for('delete_row', table='water', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer cette année ?');">Suppr</a></td>
-                {% endfor %}
-                <td>
-                    <form id="form-water" action="{{ url_for('addwater') }}" method="POST">
-                        <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
-                    </form>
-                </td>
+                {% for row in water %}<td><a href="{{ url_for('farm.delete_row', table='water', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer ?');">Suppr</a></td>{% endfor %}
+                <td><form id="form-water" action="{{ url_for('farm.addwater') }}" method="POST"><button type="submit" class="btn btn-primary btn-sm">Ajouter</button></form></td>
             </tr>
         </table>
     </div>
@@ -404,62 +211,51 @@
 <!-- ==================== LUTTE ==================== -->
 <div class="data-section" id="section-lutte">
 <div class="card">
-    <div class="card-header">
-        <h2>Lutte intégrée</h2>
-        <span class="card-badge">{{ lutte|length }} année{{ 's' if lutte|length > 1 else '' }}</span>
-    </div>
+    <div class="card-header"><h2>Lutte intégrée</h2><span class="card-badge">{{ lutte|length }} année{{ 's' if lutte|length > 1 else '' }}</span></div>
     <div class="table-wrapper">
         <table>
-            <tr>
-                <th class="row-label">Champ</th>
-                {% for row in lutte %}<th>{{ row[1] }}</th>{% endfor %}
-                <th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th>
-            </tr>
-            <tr>
-                <td class="row-label">Achat</td>
-                {% for row in lutte %}<td style="white-space:normal;max-width:150px;">{{ row[2] }}</td>{% endfor %}
-                <td><input type="text" form="form-lutte" name="achat" required></td>
-            </tr>
-            <tr>
-                <td class="row-label">Favorisation</td>
-                {% for row in lutte %}<td style="white-space:normal;max-width:150px;">{{ row[3] }}</td>{% endfor %}
-                <td><input type="text" form="form-lutte" name="favorisation"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Formation</td>
-                {% for row in lutte %}<td style="white-space:normal;max-width:150px;">{{ row[4] }}</td>{% endfor %}
-                <td><input type="text" form="form-lutte" name="formation"></td>
-            </tr>
-            <tr>
-                <td class="row-label">Année</td>
-                {% for row in lutte %}<td>{{ row[1] }}</td>{% endfor %}
-                <td><input type="number" form="form-lutte" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td>
-            </tr>
+            <tr><th class="row-label">Champ</th>{% for row in lutte %}<th>{{ row[1] }}</th>{% endfor %}<th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th></tr>
+            <tr><td class="row-label">Achat</td>{% for row in lutte %}<td style="white-space:normal;max-width:150px;">{{ row[2] }}</td>{% endfor %}<td><input type="text" list="dl-lutte_achat" form="form-lutte" name="achat" data-catalog-category="lutte_achat"></td></tr>
+            <tr><td class="row-label">Favorisation</td>{% for row in lutte %}<td style="white-space:normal;max-width:150px;">{{ row[3] }}</td>{% endfor %}<td><input type="text" list="dl-lutte_favorisation" form="form-lutte" name="favorisation" data-catalog-category="lutte_favorisation"></td></tr>
+            <tr><td class="row-label">Formation</td>{% for row in lutte %}<td style="white-space:normal;max-width:150px;">{{ row[4] }}</td>{% endfor %}<td><input type="text" list="dl-lutte_formation" form="form-lutte" name="formation" data-catalog-category="lutte_formation"></td></tr>
+            <tr><td class="row-label">Année</td>{% for row in lutte %}<td>{{ row[1] }}</td>{% endfor %}<td><input type="number" form="form-lutte" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td></tr>
             <tr>
                 <td class="row-label">Actions</td>
-                {% for row in lutte %}
-                <td><a href="{{ url_for('delete_row', table='lutte', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer cette année ?');">Suppr</a></td>
-                {% endfor %}
-                <td>
-                    <form id="form-lutte" action="{{ url_for('addlutte') }}" method="POST">
-                        <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
-                    </form>
-                </td>
+                {% for row in lutte %}<td><a href="{{ url_for('farm.delete_row', table='lutte', idtodel=row[0]) }}" class="btn btn-danger" onclick="return confirm('Supprimer ?');">Suppr</a></td>{% endfor %}
+                <td><form id="form-lutte" action="{{ url_for('farm.addlutte') }}" method="POST"><button type="submit" class="btn btn-primary btn-sm">Ajouter</button></form></td>
             </tr>
         </table>
     </div>
 </div>
 </div>
 
+<!-- ==================== Catalog enforcement modal ==================== -->
+<div id="cat-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+        <h3>Valeurs non répertoriées au catalogue</h3>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:14px;">
+            Une ou plusieurs valeurs saisies n'existent pas encore dans le catalogue partagé.
+            Vous pouvez choisir une valeur existante ci-dessous ou créer la nouvelle valeur.
+        </p>
+        <div id="cat-modal-body"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary btn-sm" id="cat-modal-cancel" type="button">Annuler</button>
+            <button class="btn btn-primary btn-sm" id="cat-modal-create" type="button">Créer ces valeurs et soumettre</button>
+        </div>
+    </div>
+</div>
+
 <!-- ==================== CHARTS ==================== -->
 <div class="data-section" id="section-charts">
-    <div class="chart-container">
-        <h3>Évolution des surfaces (ha)</h3>
-        <canvas id="surfaceChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <h3>Évolution du Score Biodiversité</h3>
-        <canvas id="biodivChart"></canvas>
+    <div class="chart-grid">
+        <div class="chart-container">
+            <h3>Évolution des surfaces (ha)</h3>
+            <canvas id="surfaceChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h3>Évolution du Score Biodiversité</h3>
+            <canvas id="biodivChart"></canvas>
+        </div>
     </div>
 </div>
 
@@ -467,31 +263,24 @@
 
 {% block scripts %}
 <script>
-// ===== Section tabs =====
-function showSection(name) {
+function showSection(evt, name) {
     document.querySelectorAll('.data-section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
     document.getElementById('section-' + name).classList.add('active');
-    event.target.classList.add('active');
+    if (evt && evt.target) evt.target.classList.add('active');
 }
 
-// ===== Auto-calculate surface total =====
 document.addEventListener('DOMContentLoaded', function() {
     const surfInputs = document.querySelectorAll('.surf-input');
     const totalDisplay = document.getElementById('surftot_display');
     function calcTotal() {
         let sum = 0;
-        surfInputs.forEach(function(inp) {
-            sum += parseFloat(inp.value) || 0;
-        });
-        totalDisplay.value = sum.toFixed(4);
+        surfInputs.forEach(inp => sum += parseFloat(inp.value) || 0);
+        if (totalDisplay) totalDisplay.value = sum.toFixed(4);
     }
-    surfInputs.forEach(function(inp) {
-        inp.addEventListener('input', calcTotal);
-    });
+    surfInputs.forEach(inp => inp.addEventListener('input', calcTotal));
 });
 
-// ===== Chart data from Jinja =====
 const surfacesData = {{ surfaces|tojson }};
 const biodivData = {{ biodiv|tojson }};
 
@@ -499,13 +288,11 @@ Chart.defaults.color = '#8b8f9a';
 Chart.defaults.borderColor = 'rgba(46,49,58,0.5)';
 const chartColors = ['#4ecdc4','#ff6b6b','#ffd93d','#6bcb77','#a66dd4','#f9844a','#4d96ff'];
 
-// Surface chart
 if (surfacesData.length > 0) {
-    const sYears = surfacesData.map(r => r[1]);
     new Chart(document.getElementById('surfaceChart'), {
         type: 'bar',
         data: {
-            labels: sYears,
+            labels: surfacesData.map(r => r[1]),
             datasets: [
                 {label:'Fruits Rouges', data: surfacesData.map(r=>parseFloat(r[3])||0), backgroundColor: chartColors[0]+'99', borderColor: chartColors[0], borderWidth:1},
                 {label:'Gros Fruits', data: surfacesData.map(r=>parseFloat(r[4])||0), backgroundColor: chartColors[1]+'99', borderColor: chartColors[1], borderWidth:1},
@@ -515,43 +302,163 @@ if (surfacesData.length > 0) {
                 {label:'Autres', data: surfacesData.map(r=>parseFloat(r[8])||0), backgroundColor: chartColors[5]+'99', borderColor: chartColors[5], borderWidth:1},
             ]
         },
-        options: {
-            responsive: true,
-            plugins: {legend:{position:'bottom', labels:{boxWidth:12, padding:16, font:{size:11}}}},
-            scales: {
-                x: {stacked: true, grid:{display:false}},
-                y: {stacked: true, beginAtZero:true, title:{display:true, text:'Hectares'}}
-            }
-        }
+        options: {responsive:true, plugins:{legend:{position:'bottom', labels:{boxWidth:12, padding:16, font:{size:11}}}},
+            scales: {x:{stacked:true, grid:{display:false}}, y:{stacked:true, beginAtZero:true, title:{display:true, text:'Hectares'}}}}
     });
 }
 
-// Biodiv chart
-if (biodivData.length > 0) {
-    const bYears = biodivData.map(r => r[1]);
-    new Chart(document.getElementById('biodivChart'), {
+function biodivChartConfig(target) {
+    return new Chart(target, {
         type: 'line',
         data: {
-            labels: bYears,
+            labels: biodivData.map(r => r[1]),
             datasets: [{
                 label: 'Biodiv Score',
                 data: biodivData.map(r => parseFloat(r[13]) || 0),
                 borderColor: chartColors[0],
                 backgroundColor: chartColors[0] + '33',
-                fill: true,
-                tension: 0.3,
-                pointRadius: 5,
+                fill: true, tension: 0.3, pointRadius: 5,
                 pointBackgroundColor: chartColors[0],
             }]
         },
-        options: {
-            responsive: true,
-            plugins: {legend:{position:'bottom', labels:{boxWidth:12, padding:16, font:{size:11}}}},
-            scales: {
-                y: {beginAtZero:true, title:{display:true, text:'Score'}}
-            }
-        }
+        options: {responsive:true, plugins:{legend:{position:'bottom', labels:{boxWidth:12, padding:16, font:{size:11}}}},
+            scales:{y:{beginAtZero:true, title:{display:true, text:'Score'}}}}
     });
 }
+
+if (biodivData.length > 0) {
+    biodivChartConfig(document.getElementById('biodivChart'));
+    biodivChartConfig(document.getElementById('biodivInlineChart'));
+}
+
+// =====================================================================
+// Catalog enforcement: intercept dashboard form submissions, validate
+// each free-text field with `data-catalog-category` against the matching
+// datalist, and surface a modal for any unknown values so the user can
+// either pick from existing options or explicitly create them.
+// =====================================================================
+const CATALOG_LABELS = {{ catalog_labels|tojson }};
+
+function catalogValuesFor(category) {
+    const dl = document.getElementById('dl-' + category);
+    if (!dl) return [];
+    return Array.from(dl.options).map(o => o.value);
+}
+
+function findUnknowns(form) {
+    const out = [];
+    form.querySelectorAll('[data-catalog-category]').forEach(inp => {
+        const v = (inp.value || '').trim();
+        if (!v) return;
+        const cat = inp.dataset.catalogCategory;
+        const known = catalogValuesFor(cat);
+        if (!known.includes(v)) {
+            out.push({input: inp, category: cat, value: v, knownValues: known});
+        }
+    });
+    return out;
+}
+
+const modal       = document.getElementById('cat-modal');
+const modalBody   = document.getElementById('cat-modal-body');
+const modalCancel = document.getElementById('cat-modal-cancel');
+const modalCreate = document.getElementById('cat-modal-create');
+
+let pendingForm = null;
+let pendingUnknowns = [];
+
+function showCatalogModal(form, unknowns) {
+    pendingForm = form;
+    pendingUnknowns = unknowns;
+    modalBody.innerHTML = '';
+    unknowns.forEach((u, idx) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'cat-modal-entry';
+        wrap.innerHTML = `
+            <div class="cat-modal-row">
+                <span class="cat-modal-cat">${CATALOG_LABELS[u.category] || u.category}</span>
+                <span class="cat-modal-value">vous avez tapé : <strong>${escapeHtml(u.value)}</strong></span>
+            </div>
+            <div class="cat-modal-existing">
+                <small>Valeurs existantes pour cette catégorie :</small>
+                <div class="cat-modal-options">
+                    ${u.knownValues.length === 0
+                        ? '<em style="color:var(--text-muted);">— aucune —</em>'
+                        : u.knownValues.map(v => `<button type="button" class="cat-pick" data-idx="${idx}" data-val="${escapeAttr(v)}">${escapeHtml(v)}</button>`).join('')}
+                </div>
+            </div>`;
+        modalBody.appendChild(wrap);
+    });
+    // Wire up "pick existing" buttons
+    modalBody.querySelectorAll('.cat-pick').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.idx, 10);
+            const val = btn.dataset.val;
+            pendingUnknowns[idx].input.value = val;
+            // Re-evaluate: maybe everything is now known
+            const remaining = findUnknowns(pendingForm);
+            if (remaining.length === 0) {
+                hideCatalogModal();
+                pendingForm.submit();
+            } else {
+                showCatalogModal(pendingForm, remaining);
+            }
+        });
+    });
+    modal.classList.remove('hidden');
+}
+
+function hideCatalogModal() {
+    modal.classList.add('hidden');
+    modalBody.innerHTML = '';
+    pendingForm = null;
+    pendingUnknowns = [];
+}
+
+modalCancel.addEventListener('click', hideCatalogModal);
+
+modalCreate.addEventListener('click', async () => {
+    if (!pendingForm) return hideCatalogModal();
+    modalCreate.disabled = true;
+    modalCreate.textContent = 'Création en cours…';
+    try {
+        // Create catalog entries in parallel
+        await Promise.all(pendingUnknowns.map(async u => {
+            const fd = new FormData();
+            fd.append('category', u.category);
+            fd.append('value', u.value);
+            return fetch('/catalog/add', { method: 'POST', body: fd, redirect: 'manual' });
+        }));
+    } catch (e) {
+        console.error(e);
+        alert("Erreur lors de la création des entrées au catalogue : " + e.message);
+        modalCreate.disabled = false;
+        modalCreate.textContent = 'Créer ces valeurs et soumettre';
+        return;
+    }
+    const form = pendingForm;
+    hideCatalogModal();
+    modalCreate.disabled = false;
+    modalCreate.textContent = 'Créer ces valeurs et soumettre';
+    form.submit();
+});
+
+// Attach the interceptor to all forms with at least one data-catalog-category input
+document.querySelectorAll('form').forEach(form => {
+    if (!form.querySelector('[data-catalog-category]')) return;
+    form.addEventListener('submit', e => {
+        const unknowns = findUnknowns(form);
+        if (unknowns.length === 0) return;
+        e.preventDefault();
+        showCatalogModal(form, unknowns);
+    });
+});
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+}
+function escapeAttr(s) { return escapeHtml(s).replace(/`/g, '&#96;'); }
 </script>
 {% endblock %}

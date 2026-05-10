@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Commande #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Commande #{{ order.id }}</h1>
+    <p class="subtitle">{{ order.name }} — Livraison {{ order.cycle_date }}</p>
+    <span class="role-pill role-{{ order.status }}">{{ order.status }}</span>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <div class="card-header"><h2>Client</h2></div>
+        <p><strong>{{ order.name }}</strong></p>
+        <p>{{ order.address or '' }}<br>{{ order.postal_code or '' }} {{ order.city or '' }}</p>
+        <p>{{ order.phone or '' }} {% if order.phone and order.email %}·{% endif %} {{ order.email or '' }}</p>
+        {% if order.notes %}<p style="color:var(--text-muted);">Note client : {{ order.notes }}</p>{% endif %}
+    </div>
+    <div class="card">
+        <div class="card-header"><h2>Synthèse</h2></div>
+        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="stat-card"><div class="stat-value">{{ "%.2f"|format(order.total_amount) }} €</div><div class="stat-label">Montant</div></div>
+            <div class="stat-card"><div class="stat-value">{{ "%.2f"|format(order.total_weight_kg) }} kg</div><div class="stat-label">Poids</div></div>
+            <div class="stat-card"><div class="stat-value">{{ "%.2f"|format(order.total_volume_l) }} L</div><div class="stat-label">Volume</div></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Articles</h2></div>
+    <table>
+        <tr><th>Produit</th><th>Producteur</th><th>Quantité</th><th>Prix u.</th><th>Total</th></tr>
+        {% for it in items %}
+        <tr>
+            <td>{{ it.product_name }}</td>
+            <td>{{ it.producteur }}</td>
+            <td>{{ it.quantity }} {{ it.unit }}</td>
+            <td>{{ "%.2f"|format(it.unit_price) }} €</td>
+            <td>{{ "%.2f"|format(it.line_total) }} €</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <div class="card-header"><h2>Statut</h2></div>
+        <form action="{{ url_for('orders.update_status', oid=order.id) }}" method="POST" class="form-grid">
+            <select name="status">
+                {% for s in ['pending','confirmed','prepared','delivered','cancelled'] %}
+                <option value="{{ s }}" {% if s == order.status %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-primary btn-sm" type="submit">Changer</button>
+        </form>
+    </div>
+    <div class="card">
+        <div class="card-header"><h2>Affecter à une tournée</h2></div>
+        <form action="{{ url_for('orders.assign_tournee', oid=order.id) }}" method="POST" class="form-grid">
+            <select name="tournee_id">
+                <option value="">— aucune —</option>
+                {% for t in tournees %}
+                <option value="{{ t.id }}" {% if order.tournee_id == t.id %}selected{% endif %}>{{ t.name }} — {{ t.delivery_date }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-primary btn-sm" type="submit">Affecter</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

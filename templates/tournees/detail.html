@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Tournée — {{ tournee.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ tournee.name }}</h1>
+    <p class="subtitle">Livraison {{ tournee.delivery_date }} · {{ tournee.driver or 'Chauffeur ?' }} · {{ tournee.vehicle or 'Véhicule ?' }}</p>
+    <span class="role-pill role-{{ tournee.status }}">{{ tournee.status }}</span>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <div class="card-header"><h2>Synthèse</h2></div>
+        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="stat-card"><div class="stat-value">{{ stops|length }}</div><div class="stat-label">Arrêts</div></div>
+            <div class="stat-card">
+                <div class="stat-value">{{ "%.1f"|format(totals.weight) }} kg</div>
+                <div class="stat-label">Poids
+                    {% if cycle_cfg.vehicle_max_weight_kg %}/ {{ cycle_cfg.vehicle_max_weight_kg }}{% endif %}
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ "%.1f"|format(totals.volume) }} L</div>
+                <div class="stat-label">Volume
+                    {% if cycle_cfg.vehicle_max_volume_l %}/ {{ cycle_cfg.vehicle_max_volume_l }}{% endif %}
+                </div>
+            </div>
+        </div>
+        <p style="margin-top:12px;">CA total : <strong>{{ "%.2f"|format(totals.amount) }} €</strong></p>
+    </div>
+    <div class="card">
+        <div class="card-header"><h2>Statut & actions</h2></div>
+        <form action="{{ url_for('tournees.update_status', tid=tournee.id) }}" method="POST" class="form-grid" style="margin-bottom:12px;">
+            <select name="status">
+                {% for s in ['planned','in_progress','done','cancelled'] %}
+                <option value="{{ s }}" {% if s == tournee.status %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-primary btn-sm" type="submit">Changer statut</button>
+        </form>
+        <form action="{{ url_for('tournees.optimize', tid=tournee.id) }}" method="POST" style="margin-bottom:12px;">
+            <button class="btn btn-secondary btn-sm" type="submit">Optimiser l'itinéraire</button>
+        </form>
+        <form action="{{ url_for('tournees.delete', tid=tournee.id) }}" method="POST" onsubmit="return confirm('Supprimer la tournée ?');">
+            <button class="btn btn-danger btn-sm" type="submit">Supprimer la tournée</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Itinéraire ({{ stops|length }} arrêts)</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th>#</th><th>Client</th><th>Adresse</th><th>Tel</th><th>Poids</th><th>Volume</th><th>Statut</th><th></th></tr>
+            {% for s in stops %}
+            <tr>
+                <td><strong>{{ s.tournee_position or '—' }}</strong></td>
+                <td>{{ s.name }}</td>
+                <td>
+                    {{ s.address or '' }} {% if s.postal_code %}<br>{{ s.postal_code }} {{ s.city or '' }}{% endif %}
+                    {% if s.lat is none %}<span class="role-pill role-cancelled" title="Coordonnées manquantes">GPS ?</span>{% endif %}
+                </td>
+                <td>{{ s.phone or '' }}</td>
+                <td>{{ "%.1f"|format(s.total_weight_kg) }} kg</td>
+                <td>{{ "%.1f"|format(s.total_volume_l) }} L</td>
+                <td><span class="role-pill role-{{ s.status }}">{{ s.status }}</span></td>
+                <td>
+                    <a href="{{ url_for('orders.detail', oid=s.order_id) }}" class="btn btn-secondary btn-sm">Cmd #{{ s.order_id }}</a>
+                    <form action="{{ url_for('tournees.remove_order', tid=tournee.id, oid=s.order_id) }}" method="POST" style="display:inline;">
+                        <button class="btn btn-danger btn-sm">−</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" style="text-align:center;color:var(--text-muted);">Aucun arrêt assigné.</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Commandes disponibles à ce cycle ({{ candidates|length }})</h2></div>
+    {% if candidates %}
+    <form action="{{ url_for('tournees.add_orders', tid=tournee.id) }}" method="POST">
+        <table>
+            <tr><th></th><th>#</th><th>Client</th><th>CP</th><th>Ville</th><th>Poids</th></tr>
+            {% for c in candidates %}
+            <tr>
+                <td><input type="checkbox" name="order_ids" value="{{ c.id }}"></td>
+                <td>#{{ c.id }}</td>
+                <td>{{ c.name }}</td>
+                <td>{{ c.postal_code or '—' }}</td>
+                <td>{{ c.city or '—' }}</td>
+                <td>{{ "%.1f"|format(c.total_weight_kg) }} kg</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <button type="submit" class="btn btn-primary btn-sm" style="margin-top:12px;">Ajouter à la tournée</button>
+    </form>
+    {% else %}
+    <p style="color:var(--text-muted);">Aucune commande non assignée pour ce cycle.</p>
+    {% endif %}
+</div>
+{% endblock %}

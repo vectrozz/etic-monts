@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commande — {{ branding.name or "Etic'Monts" }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ static_version|default('1') }}">
+</head>
+<body class="public-body">
+    <div class="public-wrapper">
+        <header class="public-header">
+            <h1>{{ branding.name or "Etic'Monts" }}</h1>
+            <p>Espace commande — {{ client.name }}</p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}<div class="flash-container">{% for c, m in messages %}<div class="alert alert-{{ c }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+        {% endwith %}
+
+        <div class="cycle-strip">
+            <span class="cycle-strip-label">Choisir une livraison :</span>
+            {% for s in slots %}
+            <a class="cycle-pill {{ 'open' if s.is_open else 'closed' }} {{ 'selected' if cycle_date and s.delivery_date == cycle_date.isoformat() else '' }}"
+               href="{{ url_for('public.order_form', token=request.view_args.token) }}?cycle={{ s.delivery_date }}">
+                <strong>{{ s.label }}</strong>
+                <small>
+                    {% if s.is_open %}Clôture {{ s.deadline|replace('T',' ')|truncate(16,True,'') }}{% else %}Fermé{% endif %}
+                </small>
+            </a>
+            {% endfor %}
+        </div>
+
+        {% if products %}
+        <form method="POST" action="{{ url_for('public.submit_order', token=request.view_args.token) }}" class="public-form">
+            <input type="hidden" name="cycle_date" value="{{ cycle_date }}">
+
+            {% set categories = {} %}
+            {% for p in products %}
+            {% set _ = categories.setdefault(p.category or 'Autres', []).append(p) %}
+            {% endfor %}
+
+            {% for cat, items in categories.items() %}
+            <section class="public-cat">
+                <h2>{{ cat }}</h2>
+                <div class="product-grid">
+                    {% for p in items %}
+                    <div class="product-card">
+                        <div class="product-name">{{ p.name }}</div>
+                        <div class="product-meta">
+                            {{ p.producteur }}
+                            {% if p.price %}· <strong>{{ "%.2f"|format(p.price) }} €/{{ p.unit }}</strong>{% endif %}
+                        </div>
+                        {% if p.description %}<div class="product-desc">{{ p.description }}</div>{% endif %}
+                        <div class="product-stock">Disponible : <strong>{{ "%g"|format(p.remaining|float) }}</strong> {{ p.unit }}</div>
+                        <input type="number" name="qty_{{ p.id }}" min="0" max="{{ p.remaining }}" step="0.01"
+                               placeholder="Quantité ({{ p.unit }})">
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+
+            <div class="public-footer-form">
+                <textarea name="notes" rows="3" placeholder="Notes / instructions de livraison (optionnel)"></textarea>
+                <button type="submit" class="btn btn-primary">Valider la commande</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="card" style="margin:32px auto;max-width:720px;">
+            <p>Aucun produit disponible pour cette livraison.</p>
+        </div>
+        {% endif %}
+
+        <footer class="public-footer">
+            {{ branding.name or "Etic'Monts" }} — Lien personnel, ne pas partager.
+            {% if branding.support_email %}<br>Contact : <a href="mailto:{{ branding.support_email }}">{{ branding.support_email }}</a>{% endif %}
+        </footer>
+    </div>
+</body>
+</html>

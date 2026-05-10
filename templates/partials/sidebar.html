@@ -1,0 +1,115 @@
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h2>{{ branding.name or "Etic'Monts" }}</h2>
+        <span class="sidebar-subtitle">{{ branding.subtitle or "Coopérative" }}</span>
+    </div>
+    <div class="sidebar-user">
+        <div class="user-avatar">
+            {% if user_photo %}
+            <img src="{{ url_for('static', filename=user_photo) }}?v={{ static_version|default('1') }}" alt="Photo">
+            {% else %}
+            {{ session.username[0]|upper }}
+            {% endif %}
+        </div>
+        <div class="user-info">
+            <span class="user-name">{{ session.username }}</span>
+            <span class="user-role">{{ session.role|default('producteur') }}</span>
+        </div>
+    </div>
+
+    <ul class="sidebar-nav">
+        <li class="nav-group" data-section="exploitation">
+            <button type="button" class="nav-section">Mon exploitation</button>
+            <ul class="nav-items">
+                <li><a href="{{ url_for('farm.dashboard') }}" class="{% if request.endpoint and request.endpoint.startswith('farm.dashboard') %}active{% endif %}">
+                    <span class="nav-icon">&#9632;</span> Tableau de bord</a></li>
+            </ul>
+        </li>
+
+        <li class="nav-group" data-section="production_cost">
+            <button type="button" class="nav-section">Coût de production</button>
+            <ul class="nav-items">
+                {% if production_crops %}
+                {% for c in production_crops %}
+                <li><a href="{{ url_for('production_cost.view', crop=c.slug) }}"
+                       class="{% if request.endpoint and request.endpoint.startswith('production_cost.') and request.view_args and request.view_args.crop == c.slug %}active{% endif %}">
+                    <span class="nav-icon">{{ c.emoji or '🌿' }}</span> {{ c.label }}</a></li>
+                {% endfor %}
+                {% else %}
+                <li class="nav-empty"><em>Aucune culture définie. Créez un produit dans Marketplace → Produits.</em></li>
+                {% endif %}
+            </ul>
+        </li>
+
+        <li class="nav-group" data-section="marketplace">
+            <button type="button" class="nav-section">Marketplace</button>
+            <ul class="nav-items">
+                <li><a href="{{ url_for('products.index') }}" class="{% if request.endpoint and request.endpoint.startswith('products.') %}active{% endif %}">
+                    <span class="nav-icon">&#10047;</span> Produits</a></li>
+                <li><a href="{{ url_for('stocks.index') }}" class="{% if request.endpoint and request.endpoint.startswith('stocks.') %}active{% endif %}">
+                    <span class="nav-icon">&#9636;</span> Stocks</a></li>
+                <li><a href="{{ url_for('clients.index') }}" class="{% if request.endpoint and request.endpoint.startswith('clients.') %}active{% endif %}">
+                    <span class="nav-icon">&#9787;</span> Clients</a></li>
+                <li><a href="{{ url_for('orders.index') }}" class="{% if request.endpoint and request.endpoint.startswith('orders.') %}active{% endif %}">
+                    <span class="nav-icon">&#10004;</span> Commandes</a></li>
+            </ul>
+        </li>
+
+        <li class="nav-group" data-section="settings">
+            <button type="button" class="nav-section">Réglages</button>
+            <ul class="nav-items">
+                <li><a href="{{ url_for('settings.exploitation') }}" class="{% if request.endpoint == 'settings.exploitation' %}active{% endif %}">
+                    <span class="nav-icon">&#9881;</span> Mon exploitation</a></li>
+                {% if is_admin and is_admin() %}
+                <li><a href="{{ url_for('settings.index') }}" class="{% if request.endpoint == 'settings.index' or (request.endpoint and request.endpoint.startswith('tournees.')) %}active{% endif %}">
+                    <span class="nav-icon">&#10148;</span> Livraison</a></li>
+                {% endif %}
+                <li><a href="{{ url_for('catalog.index') }}" class="{% if request.endpoint and request.endpoint.startswith('catalog.') %}active{% endif %}">
+                    <span class="nav-icon">&#9776;</span> Catalogue partagé</a></li>
+            </ul>
+        </li>
+
+        {% if is_admin and is_admin() %}
+        <li class="nav-group" data-section="admin">
+            <button type="button" class="nav-section">Admin</button>
+            <ul class="nav-items">
+                <li><a href="{{ url_for('admin.dashboard') }}" class="{% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+                    <span class="nav-icon">&#9733;</span> Synthèse réseau</a></li>
+                <li><a href="{{ url_for('admin.coefbiodiv') }}" class="{% if request.endpoint == 'admin.coefbiodiv' %}active{% endif %}">
+                    <span class="nav-icon">&#9874;</span> Coefficients MAEC</a></li>
+                <li><a href="{{ url_for('admin.users') }}" class="{% if request.endpoint == 'admin.users' %}active{% endif %}">
+                    <span class="nav-icon">&#128100;</span> Utilisateurs</a></li>
+            </ul>
+        </li>
+        {% endif %}
+    </ul>
+
+    <div class="sidebar-footer">
+        {% if not (is_admin and is_admin()) %}
+        <a href="{{ url_for('main.logout') }}?next=admin" class="sidebar-admin-hint" title="Se déconnecter pour se reconnecter avec un compte administrateur">
+            Accéder en admin →
+        </a>
+        {% endif %}
+        <a href="{{ url_for('main.logout') }}" class="btn btn-outline-danger btn-sm">Se déconnecter</a>
+    </div>
+</nav>
+
+<script>
+// Collapse / expand sidebar groups, with state persisted in localStorage.
+(function () {
+    const KEY = 'etcm_sidebar_collapsed';
+    let state;
+    try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { state = {}; }
+    document.querySelectorAll('.nav-group').forEach(group => {
+        const id = group.dataset.section;
+        if (state[id]) group.classList.add('collapsed');
+        const header = group.querySelector('.nav-section');
+        if (!header) return;
+        header.addEventListener('click', () => {
+            group.classList.toggle('collapsed');
+            state[id] = group.classList.contains('collapsed');
+            try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+        });
+    });
+})();
+</script>

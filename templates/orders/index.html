@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Commandes{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Commandes</h1>
+    <p class="subtitle">Suivi des commandes clients</p>
+</div>
+
+<div class="filter-bar">
+    <form method="GET" class="form-grid" style="margin:0;">
+        <div class="form-group">
+            <label>Statut</label>
+            <select name="status">
+                <option value="">Tous</option>
+                {% for s in ['pending','confirmed','prepared','delivered','cancelled'] %}
+                <option value="{{ s }}" {% if s == status %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Cycle</label>
+            <select name="cycle">
+                <option value="">Tous</option>
+                {% for c in cycles %}<option value="{{ c }}" {% if c|string == cycle %}selected{% endif %}>{{ c }}</option>{% endfor %}
+            </select>
+        </div>
+        <button class="btn btn-secondary btn-sm" type="submit">Filtrer</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>{{ orders|length }} commande(s)</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th>#</th><th>Client</th><th>Cycle</th><th>Statut</th><th>Montant €</th><th>Poids kg</th><th>Tournée</th><th>Créée</th><th></th></tr>
+            {% for o in orders %}
+            <tr>
+                <td>#{{ o[0] }}</td>
+                <td>{{ o[1] }}</td>
+                <td>{{ o[2] }}</td>
+                <td><span class="role-pill role-{{ o[3] }}">{{ o[3] }}</span></td>
+                <td>{{ "%.2f"|format(o[4]) }}</td>
+                <td>{{ "%.2f"|format(o[5]) }}</td>
+                <td>{{ o[6] or '—' }}</td>
+                <td>{{ o[7].strftime('%Y-%m-%d %H:%M') if o[7] else '' }}</td>
+                <td><a href="{{ url_for('orders.detail', oid=o[0]) }}" class="btn btn-secondary btn-sm">Détail</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" style="text-align:center;color:var(--text-muted);">Aucune commande.</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+{% endblock %}

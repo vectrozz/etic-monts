@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commande confirmée — {{ branding.name or "Etic'Monts" }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ static_version|default('1') }}">
+</head>
+<body class="public-body">
+    <div class="public-wrapper" style="text-align:center;">
+        <header class="public-header">
+            <h1>Commande #{{ order_id }} confirmée</h1>
+            <p>Merci {{ client.name }} !</p>
+        </header>
+        <div class="card" style="margin: 32px auto; max-width: 520px;">
+            <p>Livraison prévue le <strong>{{ cycle_date }}</strong>.</p>
+            <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <div class="stat-card"><div class="stat-value">{{ "%.2f"|format(total_amount) }} €</div><div class="stat-label">Montant</div></div>
+                <div class="stat-card"><div class="stat-value">{{ "%.2f"|format(total_weight_kg) }} kg</div><div class="stat-label">Poids</div></div>
+                <div class="stat-card"><div class="stat-value">{{ "%.2f"|format(total_volume_l) }} L</div><div class="stat-label">Volume</div></div>
+            </div>
+            <p style="margin-top:24px;">Un récapitulatif vous sera envoyé. Vous pouvez fermer cette page.</p>
+            <a href="{{ url_for('public.order_form', token=request.view_args.token) }}" class="btn btn-secondary btn-sm" style="margin-top:12px;">Passer une autre commande</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Stocks{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Stocks</h1>
+    <p class="subtitle">Quantités disponibles &mdash; par livraison ou en pool saison</p>
+</div>
+
+<div class="cycle-strip">
+    <span class="cycle-strip-label">Choisir un cycle :</span>
+    {% for s in slots %}
+    <a class="cycle-pill {{ 'open' if s.is_open else 'closed' }} {{ 'selected' if cycle and s.delivery_date == cycle.isoformat() else '' }}"
+       href="{{ url_for('stocks.index', cycle=s.delivery_date) }}">
+        <strong>{{ s.label }}</strong>
+        <small>{% if s.is_open %}Ouvert jusqu'au {{ s.deadline|replace('T',' ')|truncate(16,True,'') }}{% else %}Fermé{% endif %}</small>
+    </a>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Saisir / mettre à jour un stock</h2>
+        <span class="card-badge">Choisir la portée ci-dessous</span>
+    </div>
+    <form action="{{ url_for('stocks.upsert') }}" method="POST" class="form-grid" id="stock-form">
+        <input type="hidden" name="cycle_date" value="{{ cycle }}">
+
+        <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Portée</label>
+            <div class="checkbox-row">
+                <label class="checkbox-pill">
+                    <input type="radio" name="scope" value="cycle" checked
+                           onchange="document.getElementById('cycle-hint').style.display='block'; document.getElementById('season-hint').style.display='none';">
+                    Cette livraison ({{ cycle }})
+                </label>
+                <label class="checkbox-pill">
+                    <input type="radio" name="scope" value="season"
+                           onchange="document.getElementById('cycle-hint').style.display='none'; document.getElementById('season-hint').style.display='block';">
+                    Saison entière (s'épuise sur toutes les livraisons)
+                </label>
+            </div>
+            <p id="cycle-hint" style="margin-top:8px;color:var(--text-muted);font-size:0.78rem;">
+                Le stock saisi ne s'applique qu'à la livraison du {{ cycle }}.
+            </p>
+            <p id="season-hint" style="display:none;margin-top:8px;color:var(--text-muted);font-size:0.78rem;">
+                Saisissez votre stock total pour la saison ; il diminuera à chaque commande, toutes livraisons confondues.
+                Si une ligne par livraison existe pour le même produit, elle prend la priorité.
+            </p>
+        </div>
+
+        <div class="form-group">
+            <label>Produit</label>
+            <select name="product_id" required>
+                <option value="">— choisir —</option>
+                {% for p in products %}
+                <option value="{{ p.id }}" data-price="{{ p.default_price or '' }}">{{ p.name }} ({{ p.unit }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label>Quantité disponible</label><input type="number" name="quantity_available" min="0" step="0.01" required></div>
+        <div class="form-group"><label>Prix unitaire (€)</label><input type="number" name="price" step="0.01" min="0"></div>
+        <div class="form-group" style="grid-column: 1 / -1;"><label>Notes</label><input type="text" name="notes"></div>
+        {% if is_admin and is_admin() %}
+        <div class="form-group">
+            <label>Producteur (admin)</label>
+            <input type="number" name="producteur_id" min="1" placeholder="ID du producteur (laisser vide pour soi-même)">
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+    </form>
+</div>
+
+{% macro stock_table(rows, is_pool) %}
+<div class="table-wrapper">
+    <table>
+        <tr>
+            <th>Producteur</th><th>Produit</th><th>Unité</th>
+            <th>Disponible</th><th>Réservé</th><th>Restant</th>
+            <th>Prix</th><th>Notes</th><th>Actions</th>
+        </tr>
+        {% for s in rows %}
+        {% set rem = (s[6]|float) - (s[7]|float) %}
+        <tr>
+            <td>{{ s[2] or '—' }}</td>
+            <td>
+                {{ s[4] }}
+                {% if is_pool %}<span class="role-pill pool-pill">Saison</span>{% endif %}
+            </td>
+            <td>{{ s[5] }}</td>
+            <td>{{ s[6] }}</td>
+            <td>{{ s[7] }}</td>
+            <td><strong>{{ "%.3f"|format(rem) }}</strong></td>
+            <td>{{ "%.2f"|format(s[8]) if s[8] is not none else '—' }}</td>
+            <td>{{ s[9] or '' }}</td>
+            <td>
+                <form action="{{ url_for('stocks.delete', sid=s[0]) }}" method="POST" onsubmit="return confirm('Supprimer ce stock ?');">
+                    <button class="btn btn-danger btn-sm">Suppr</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" style="text-align:center;color:var(--text-muted);">Aucun stock.</td></tr>
+        {% endfor %}
+    </table>
+</div>
+{% endmacro %}
+
+<div class="card">
+    <div class="card-header">
+        <h2>Pool saison ({{ pool_stocks|length }})</h2>
+        <span class="card-badge">S'épuise sur toutes les livraisons</span>
+    </div>
+    {{ stock_table(pool_stocks, true) }}
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Stocks dédiés à la livraison du {{ cycle }} ({{ cycle_stocks|length }})</h2></div>
+    {{ stock_table(cycle_stocks, false) }}
+</div>
+{% endblock %}

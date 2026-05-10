@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Utilisateurs — Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Utilisateurs</h1>
+    <p class="subtitle">Gérer les comptes producteurs / clients / admins</p>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Créer un compte</h2></div>
+    <form action="{{ url_for('admin.create_user') }}" method="POST" class="form-grid">
+        <div class="form-group">
+            <label>Identifiant</label>
+            <input type="text" name="name" required>
+        </div>
+        <div class="form-group">
+            <label>Nom de la ferme / structure</label>
+            <input type="text" name="farmname">
+        </div>
+        <div class="form-group">
+            <label>Mot de passe (8 min.)</label>
+            <input type="password" name="password" minlength="8" required>
+        </div>
+        <div class="form-group">
+            <label>Rôle</label>
+            <select name="role">
+                {% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Créer</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header"><h2>Comptes existants</h2></div>
+    <div class="table-wrapper">
+        <table>
+            <tr><th>Identifiant</th><th>Structure</th><th>Rôle</th><th>Actif</th><th>Email</th><th>Tél</th><th>Dernière connexion</th><th>Actions</th></tr>
+            {% for u in users %}
+            <tr>
+                <td>{{ u[1] }}</td>
+                <td>{{ u[2] or '—' }}</td>
+                <td>
+                    <form action="{{ url_for('admin.set_user_role', uid=u[0]) }}" method="POST" style="display:flex;gap:6px;align-items:center;">
+                        <select name="role">
+                            {% for r in roles %}<option value="{{ r }}" {% if r == u[3] %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                        </select>
+                        <button class="btn btn-secondary btn-sm" type="submit">OK</button>
+                    </form>
+                </td>
+                <td>
+                    <form action="{{ url_for('admin.toggle_user', uid=u[0]) }}" method="POST">
+                        <button class="btn btn-secondary btn-sm" type="submit">{{ 'Désactiver' if u[4] else 'Activer' }}</button>
+                    </form>
+                </td>
+                <td>{{ u[5] or '—' }}</td>
+                <td>{{ u[6] or '—' }}</td>
+                <td>{{ u[8].strftime('%Y-%m-%d %H:%M') if u[8] else '—' }}</td>
+                <td>
+                    <form action="{{ url_for('admin.reset_password', uid=u[0]) }}" method="POST" style="display:flex;gap:6px;">
+                        <input type="password" name="new_password" placeholder="Nouveau MDP" minlength="8" required>
+                        <button class="btn btn-danger btn-sm" type="submit">Réinit.</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+{% endblock %}

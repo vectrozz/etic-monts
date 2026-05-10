@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Accès refusé{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>403 — Accès refusé</h1>
+    <p class="subtitle">Cette page est réservée aux administrateurs.</p>
+</div>
+<div class="card">
+    <p>Votre compte est connecté avec le rôle <strong>{{ session.role|default('producteur') }}</strong>.</p>
+    <p style="color:var(--text-muted);margin-top:8px;">
+        Pour accéder au panneau d'administration :
+    </p>
+    <ul style="color:var(--text-muted);margin:8px 0 16px 24px;line-height:1.8;">
+        <li>déconnectez-vous puis reconnectez-vous avec un identifiant administrateur ;</li>
+        <li>ou demandez à un administrateur existant de promouvoir votre compte
+            (page <strong>Admin → Utilisateurs</strong>) ;</li>
+        <li>si <em>aucun</em> compte administrateur n'existe encore, le premier utilisateur
+            qui s'inscrit devient automatiquement administrateur.</li>
+    </ul>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="{{ url_for('main.logout') }}" class="btn btn-primary btn-sm">Se déconnecter</a>
+        <a href="{{ url_for('farm.dashboard') }}" class="btn btn-secondary btn-sm">Retour au tableau de bord</a>
+    </div>
+</div>
+{% endblock %}
+{% block auth_content %}
+<div class="auth-card">
+    <h1 style="font-size:2rem;color:var(--accent);">403</h1>
+    <p style="text-align:center;color:var(--text-muted);margin:12px 0;">Accès refusé</p>
+    <a href="{{ url_for('main.login') }}" class="btn btn-primary btn-block">Se connecter</a>
+</div>
+{% endblock %}
