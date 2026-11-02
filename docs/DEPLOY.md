@@ -25,28 +25,32 @@ refuse de démarrer si la base n'est pas à la bonne révision.
 
 ---
 
-## ⚠️ 1. Sauvegardes : en panne depuis le 21/04/2026
+## Workflow : seul `main` est déployé
 
-Constat du 02/11/2026 : tous les dumps depuis le 21/04/2026 font **0 octet**.
-La ligne cron utilise `docker ps -qf "name=postgres-db"`, qui renvoie aussi
-`otc-bot-postgres-db` (créé le 20/04/2026) → `docker exec` échoue chaque nuit.
-Dernier dump valide sur le serveur : `db_backup_20260420_020001.sql`.
-(Une copie complète du 02/11/2026 existe sur le poste de dev :
-`EMB/backups/prod_eticmont_20261102.sql`.)
+Développeur seul, pas de pull request :
 
-**À faire tout de suite** (avant même le déploiement) :
+1. travailler sur une branche locale (ou directement sur `main`) ;
+2. `scripts/ci.sh` doit passer (le hook pre-push le relance de toute façon) ;
+3. fusionner dans `main` et pousser : `git switch main && git merge --ff-only <branche> && git push` ;
+4. sur le VPS : `scripts/deploy.sh` — il déploie `origin/main` et **refuse
+   toute autre branche**. On ne commite jamais sur le serveur.
 
-```bash
-# a) un dump valide maintenant (nom de conteneur exact)
-docker exec eticmonts-postgres-db-1 pg_dump -U eticmont eticmont \
-  > /home/postgres-backups/manual_$(date +%Y%m%d_%H%M%S).sql
-ls -la /home/postgres-backups/manual_*          # doit faire ~35 Ko, pas 0
+---
 
-# b) crontab -e : remplacer les 2 lignes « EMB BACKUP » par
+## 1. Sauvegardes (corrigé le 02/11/2026)
+
+Tous les dumps du 21/04/2026 au 02/11/2026 font **0 octet** : la ligne cron
+utilisait `docker ps -qf "name=postgres-db"`, qui renvoie aussi
+`otc-bot-postgres-db` (créé le 20/04/2026) → `docker exec` échouait chaque nuit.
+Corrigé le 02/11/2026 : dump manuel valide
+(`manual_20261102_155738.sql`, 35 Ko) et ligne cron avec le nom exact du
+conteneur :
+
+```cron
 0 2 * * * docker exec eticmonts-postgres-db-1 pg_dump -U eticmont eticmont > /home/postgres-backups/db_backup_$(date +\%Y\%m\%d_\%H\%M\%S).sql
 ```
 
-Après le déploiement v3.1 (étape 2), remplacer cette ligne par le script, qui
+Après le déploiement v3.1 (§2), remplacer cette ligne par le script, qui
 vérifie le dump et signale l'échec :
 
 ```cron
@@ -66,13 +70,12 @@ nginx « rétrogradé » en backend 127.0.0.1:8085). La v3.1 supprime ce
 conteneur : gunicorn écoute directement sur 127.0.0.1:8085, **le vhost
 `emb.conf` et certbot ne changent pas**.
 
-Prérequis : `scripts/ci.sh` passe en local, la branche est poussée (PR #1
-fusionnée dans `main`, ou déployer `release/v3-fraise`).
+Prérequis : la v3.1 est fusionnée dans `main` et poussée (`scripts/ci.sh` OK).
 
 ```bash
 cd /root/EMB/etic-monts
 
-# 1. sauvegarde (cf. §1 a)
+# 1. sauvegarde
 docker exec eticmonts-postgres-db-1 pg_dump -U eticmont eticmont \
   > /home/postgres-backups/pre-v3_$(date +%Y%m%d_%H%M%S).sql && ls -la /home/postgres-backups/pre-v3_*
 
@@ -87,8 +90,9 @@ APP_PORT=8085
 POSTGRES_BIND=127.0.0.1
 EOF
 
-# 4. déployer (sauvegarde, build, migrations Alembic, redémarrage, health check)
-git fetch origin && git checkout main        # ou: release/v3-fraise
+# 4. récupérer main (deploy.sh n'existe qu'à partir de la v3), puis déployer
+#    (sauvegarde vérifiée, build, migrations Alembic, redémarrage, health check)
+git pull --ff-only origin main
 scripts/deploy.sh
 ```
 
@@ -125,18 +129,17 @@ revient → Fraise** (saisir puis supprimer une campagne test),
 
 ```bash
 # sur le poste de dev
-scripts/ci.sh                  # ou: make ci  (le hook pre-push le fait automatiquement)
-git push                       # puis fusion dans main
+scripts/ci.sh                               # ou: make ci (le hook pre-push le fait aussi)
+git switch main && git merge --ff-only <branche> && git push
 
 # sur le VPS
-/root/EMB/etic-monts/scripts/deploy.sh            # met à jour la branche courante
-/root/EMB/etic-monts/scripts/deploy.sh main       # ou une branche / un tag précis
+/root/EMB/etic-monts/scripts/deploy.sh      # toujours origin/main, sans argument
 ```
 
-`deploy.sh` : contrôles (`.env`, aucun fichier suivi modifié) → sauvegarde
-(échoue si le dump est vide) → `git pull --ff-only` → build → `alembic upgrade
-head` → redémarrage de `app-flask` → `/healthz`. Il affiche la commande de
-retour arrière.
+`deploy.sh` : contrôles (`.env`, checkout sur `main`, aucun fichier suivi
+modifié) → sauvegarde (échoue si le dump est vide) → fast-forward sur
+`origin/main` → build → `alembic upgrade head` → redémarrage de `app-flask`
+→ `/healthz`. Il affiche la marche à suivre pour revenir en arrière.
 
 ## 4. Migrations de base (Alembic)
 
@@ -167,10 +170,14 @@ ignorés par git.
 
 ## 6. Retour arrière
 
-- **Code** : `git checkout <commit précédent> && scripts/deploy.sh`. Le code
-  v2 fonctionne sur une base migrée en v3 (colonnes ajoutées avec valeurs
-  par défaut) ; pour une version future, revenir aussi le schéma avec
-  `docker compose -f docker-compose.prod.yml run --rm app-flask alembic downgrade <rev>`.
+- **Code** : sur le poste de dev, `git revert` des commits fautifs sur `main`,
+  `scripts/ci.sh`, `git push`, puis `scripts/deploy.sh` sur le VPS (la prod
+  reste toujours sur `main`). Si la version annulée contenait une migration,
+  ajouter une nouvelle migration qui la défait plutôt que de lancer
+  `alembic downgrade` à la main.
+- **Retour d'urgence en v2** (une seule fois, juste après la mise en v3) : le
+  code v2 fonctionne sur la base migrée (colonnes ajoutées avec valeurs par
+  défaut) — revert des commits v3 sur `main` comme ci-dessus.
 - **Données** : `scripts/restore_db.sh <dump de l'étape sauvegarde>`.
 
 ## 7. TLS

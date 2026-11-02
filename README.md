@@ -74,5 +74,7 @@ touchée. Sans base, `python -m pytest` ne lance que les tests unitaires.
 
 ## Déploiement
 
-Voir [docs/DEPLOY.md](docs/DEPLOY.md) : `scripts/deploy.sh` sur le VPS
-(sauvegarde → pull → build → migrations → redémarrage → health check).
+Seule la branche `main` est déployée : on fusionne dans `main` (CI locale OK,
+pas de pull request), on pousse, puis `scripts/deploy.sh` sur le VPS
+(sauvegarde → `origin/main` → build → migrations → redémarrage → health
+check). Détails : [docs/DEPLOY.md](docs/DEPLOY.md).
