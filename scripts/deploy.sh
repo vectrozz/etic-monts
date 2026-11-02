@@ -91,8 +91,12 @@ curl -fsS -o /dev/null -w "  public: https://emb.boblabs.eu/login → %{http_cod
 "${COMPOSE[@]}" ps
 
 say "Done ($BEFORE → $AFTER)"
-cat <<EOF
+if [[ "$BEFORE" == "$AFTER" ]]; then
+    echo "No new commit on origin/main: same code ($AFTER), image rebuilt and restarted."
+else
+    cat <<EOF
 Rollback (code):      on your machine: git revert --no-edit $BEFORE..$AFTER on main, scripts/ci.sh,
                       git push, then run $0 again (main stays the only thing deployed)
-Rollback (database):  scripts/restore_db.sh <dump from the backup step above>
 EOF
+fi
+echo "Rollback (database):  scripts/restore_db.sh <dump from the backup step above>"
