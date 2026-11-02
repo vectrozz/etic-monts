@@ -64,9 +64,10 @@ say "Database + migrations"
 # ---------------------------------------------------------------- restart
 say "Restart"
 # v2 → v3: the old loopback nginx container of this project held 127.0.0.1:8085.
-if docker ps -a --format '{{.Names}}' | grep -qx eticmonts-nginx-1; then
-    echo "  removing legacy container eticmonts-nginx-1"
-    docker rm -f eticmonts-nginx-1 >/dev/null
+LEGACY_NGINX="${COMPOSE_PROJECT_NAME:-eticmonts}-nginx-1"
+if docker ps -a --format '{{.Names}}' | grep -qx "$LEGACY_NGINX"; then
+    echo "  removing legacy container $LEGACY_NGINX"
+    docker rm -f "$LEGACY_NGINX" >/dev/null
 fi
 "${COMPOSE[@]}" up -d --remove-orphans app-flask
 
