@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="28dp"
+        android:paddingBottom="32dp">
+
+        <TextView
+            style="@style/Text.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name" />
+
+        <TextView
+            style="@style/Text.Muted"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/tagline" />
+
+        <!-- Status -->
+        <LinearLayout style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <TextView style="@style/Text.Section" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/section_status" />
+            <TextView
+                android:id="@+id/status"
+                style="@style/Text.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="4dp" />
+            <Button android:id="@+id/btn_access" style="@style/Button.Primary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/btn_access" />
+            <Button android:id="@+id/btn_battery" style="@style/Button.Secondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/btn_battery" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                <Button android:id="@+id/btn_test" style="@style/Button.Secondary" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginEnd="8dp" android:text="@string/btn_test" />
+                <Button android:id="@+id/btn_send" style="@style/Button.Secondary" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/btn_send" />
+            </LinearLayout>
+            <Button android:id="@+id/btn_simulate" style="@style/Button.Secondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/btn_simulate" android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Configuration -->
+        <LinearLayout style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <TextView style="@style/Text.Section" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/section_config" />
+            <TextView style="@style/Text.Muted" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/config_hint" />
+
+            <TextView style="@style/Text.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/label_server" />
+            <EditText android:id="@+id/server" style="@style/Field" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="https://emb.boblabs.eu" android:importantForAutofill="no" android:inputType="textUri" />
+
+            <TextView style="@style/Text.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/label_token" />
+            <EditText android:id="@+id/token" style="@style/Field" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="embr_…" android:importantForAutofill="no" android:inputType="textPassword" />
+
+            <TextView style="@style/Text.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/label_groups" />
+            <EditText android:id="@+id/groups" style="@style/Field" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="top" android:hint="@string/hint_groups" android:importantForAutofill="no" android:inputType="textMultiLine|textCapSentences" android:minLines="2" />
+
+            <Button android:id="@+id/btn_save" style="@style/Button.Primary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/btn_save" />
+        </LinearLayout>
+
+        <!-- Recent messages -->
+        <LinearLayout style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <TextView style="@style/Text.Section" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/section_recent" />
+            <TextView android:id="@+id/recent" style="@style/Text.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:textIsSelectable="true" />
+        </LinearLayout>
+
+        <TextView style="@style/Text.Muted" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/privacy" />
+        <TextView android:id="@+id/version" style="@style/Text.Muted" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" />
+    </LinearLayout>
+</ScrollView>

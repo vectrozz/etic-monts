@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon foreground (108dp canvas, content inside the 66dp safe zone): the Etic'Monts hills. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#E0566B" android:pathData="M64,40m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+    <path android:fillColor="#8CFFFFFF"
+        android:pathData="M27,67c5.3,-8 9.9,-12.3 14.2,-12.3 3.8,0 6.2,3.6 9.8,3.6 4.4,0 8.3,-8.3 20.4,-12.7V80H27z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M27,71.5c6.5,-5.3 12.7,-8 19.5,-8 6.5,0 12.7,2.4 24.9,6.5V80H27z" />
+</vector>

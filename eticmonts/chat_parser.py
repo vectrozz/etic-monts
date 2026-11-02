@@ -30,6 +30,9 @@ _UNITS = {
     "tete": "pièce", "tetes": "pièce", "tête": "pièce", "têtes": "pièce",
     "l": "litre", "litre": "litre", "litres": "litre",
 }
+_PLURALS = {"cagette": "cagettes", "caisse": "caisses", "carton": "cartons", "botte": "bottes",
+            "pièce": "pièces", "barquette": "barquettes", "sac": "sacs", "plateau": "plateaux",
+            "filet": "filets", "litre": "litres"}
 _UNIT_RE = "|".join(sorted((re.escape(u) for u in _UNITS), key=len, reverse=True))
 _QTY = r"(?P<qty>\d+(?:[.,]\d+)?)"
 
@@ -62,7 +65,11 @@ class ParsedLine:
         if self.qty is None:
             return "—"
         q = int(self.qty) if float(self.qty).is_integer() else str(self.qty).replace(".", ",")
-        return f"{q} {self.unit}" if self.unit else str(q)
+        if not self.unit:
+            return str(q)
+        # French: plural from 2 on ("1,5 botte", "3 bottes"); colis/kg/g are invariable.
+        unit = _PLURALS.get(self.unit, self.unit) if self.qty >= 2 else self.unit
+        return f"{q} {unit}"
 
 
 def _strip_emoji(s: str) -> str:

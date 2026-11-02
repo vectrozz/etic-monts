@@ -14,6 +14,7 @@ Production : <https://emb.boblabs.eu>
 | **MAEC** (cœur) | Comptes, tableau de bord surfaces / biodiversité / plastique / sol / eau / lutte intégrée, fiche ferme, synthèse réseau, coefficients, catalogue partagé | toujours |
 | `cout_revient` | Coût de revient par culture (fraise) : temps de travail, intrants, structure → €/kg, marge, repères réseau anonymes | `FEATURES=cout_revient` |
 | `marketplace` | Produits, stocks, clients et liens de commande, commandes, tournées | `FEATURES=…,marketplace` |
+| `whatsapp` | Listes des fermes reçues du groupe WhatsApp via l'app Android « EMB Relais » ([android/](android/README.md)) : boîte de réception par ferme, expéditeurs → fermes, téléphones relais | `FEATURES=…,whatsapp` |
 
 `FEATURES` est une liste séparée par des virgules (`all` = tout). La
 production tourne avec `FEATURES=cout_revient`. Un module désactivé n'a ni
@@ -32,10 +33,11 @@ routes ni entrées de menu (ses tables existent mais restent vides).
 │   ├── blueprints/         routes (main, farm, admin, production_cost, …)
 │   └── …                   services (catalogue, commandes, tournées, …)
 ├── migrations/             Alembic : env.py + versions/ (SQL écrit à la main)
+├── android/                app Android « EMB Relais » (Kotlin) : relaie le groupe WhatsApp
 ├── templates/              Jinja (partials/ : sidebar, icônes)
 ├── static/                 CSS, JS, polices et Chart.js servis localement
 ├── tests/                  pytest : calcul, migrations, smoke tests (+ fixtures/ schéma v2)
-├── scripts/                ci.sh, deploy.sh, backup_db.sh, restore_db.sh, seed_demo.py
+├── scripts/                ci.sh, deploy.sh, build-android.sh, backup_db.sh, restore_db.sh, seed_demo.py
 ├── deploy/                 gunicorn.conf.py, nginx/ (vhost de l'hôte + certbot)
 ├── docs/                   DEPLOY.md, notes d'intégration
 ├── Dockerfile

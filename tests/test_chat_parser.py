@@ -40,8 +40,8 @@ def test_units_are_normalised():
 
 
 def test_qty_label():
-    p = parse_list("poireaux 5 colis, pommes 1,5 kg, salade")
-    assert [x.qty_label for x in p] == ["5 colis", "1,5 kg", "—"]
+    p = parse_list("poireaux 5 colis, pommes 1,5 kg, salade, 3 bottes de radis, persil 1 botte, 2 plateaux fraises")
+    assert [x.qty_label for x in p] == ["5 colis", "1,5 kg", "—", "3 bottes", "1 botte", "2 plateaux"]
 
 
 def test_deleted_and_empty_messages():

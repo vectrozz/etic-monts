@@ -141,6 +141,19 @@ modifié) → sauvegarde (échoue si le dump est vide) → fast-forward sur
 `origin/main` → build → `alembic upgrade head` → redémarrage de `app-flask`
 → `/healthz`. Il affiche la marche à suivre pour revenir en arrière.
 
+## Activer un module
+
+Les modules sont choisis dans `.env` (`FEATURES`), puis `scripts/deploy.sh`.
+Exemple, module WhatsApp (listes des fermes via l'app Android) :
+
+```bash
+sed -i 's/^FEATURES=.*/FEATURES=cout_revient,whatsapp/' /root/EMB/etic-monts/.env
+/root/EMB/etic-monts/scripts/deploy.sh
+```
+
+Puis **WhatsApp → Téléphone relais** sur le site et
+[android/README.md](../android/README.md) pour installer l'app.
+
 ## 4. Migrations de base (Alembic)
 
 - Nouvelle évolution de schéma : `alembic revision -m "…"` puis écrire le SQL

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EMB Relais</string>
+    <string name="listener_label">EMB Relais — groupe WhatsApp</string>
+    <string name="tagline">Transmet les listes des fermes postées dans le groupe WhatsApp vers Etic\'Monts.</string>
+    <string name="version">Version %1$s</string>
+
+    <string name="section_status">État</string>
+    <string name="section_config">Configuration</string>
+    <string name="section_recent">Derniers messages</string>
+
+    <string name="btn_access">Autoriser l\'accès aux notifications</string>
+    <string name="btn_battery">Ignorer l\'optimisation de batterie</string>
+    <string name="btn_test">Tester</string>
+    <string name="btn_send">Envoyer</string>
+    <string name="btn_save">Enregistrer</string>
+    <string name="btn_simulate">Simuler un message WhatsApp (debug)</string>
+
+    <string name="config_hint">Rempli automatiquement par le lien « Associer l\'application » de la page Téléphone relais du site.</string>
+    <string name="label_server">Serveur</string>
+    <string name="label_token">Jeton</string>
+    <string name="label_groups">Groupes WhatsApp (un par ligne, nom exact)</string>
+    <string name="hint_groups">Producteurs Etic\'Monts</string>
+
+    <string name="st_access_ok">Accès aux notifications autorisé</string>
+    <string name="st_access_ko">Accès aux notifications à autoriser</string>
+    <string name="st_battery_ok">Optimisation de batterie désactivée</string>
+    <string name="st_battery_ko">Optimisation de batterie active : Android peut arrêter l\'app</string>
+    <string name="st_server">Associé à %1$s</string>
+    <string name="st_not_paired">Pas encore associé au serveur</string>
+    <string name="st_groups">Groupes suivis : %1$s</string>
+    <string name="st_no_group">Aucun groupe : rien n\'est transmis</string>
+    <string name="st_counts">En attente : %1$d · envoyés : %2$d</string>
+    <string name="st_last_sync">Dernier envoi : %1$s</string>
+    <string name="st_last_chat_followed">Dernière discussion WhatsApp vue : « %1$s » (suivie)</string>
+    <string name="st_last_chat_ignored">Dernière discussion WhatsApp vue : « %1$s » (non suivie — vérifiez le nom exact du groupe)</string>
+
+    <string name="no_messages">Aucun message capté pour l\'instant.</string>
+    <string name="paired">Application associée à %1$s</string>
+    <string name="pair_invalid">Lien d\'association invalide</string>
+    <string name="not_paired">Associez d\'abord l\'application (lien depuis le site)</string>
+    <string name="saved">Configuration enregistrée</string>
+    <string name="sending">Envoi lancé</string>
+    <string name="test_ok">Connexion OK — téléphone « %1$s »</string>
+    <string name="test_unauthorized">Jeton refusé : recréez le téléphone sur le site et réassociez</string>
+    <string name="battery_ok">Déjà désactivée</string>
+
+    <string name="privacy">Seuls les messages des groupes listés ci-dessus quittent le téléphone. Les autres notifications sont ignorées et jamais enregistrées. WhatsApp n\'est pas modifié : l\'app lit les notifications que le téléphone reçoit déjà, le groupe ne doit donc pas être en sourdine.</string>
+</resources>

@@ -7,7 +7,8 @@
 #   scripts/ci.sh --dump FILE.sql  also migrate a restored copy of a real pg_dump
 #
 # Steps: ruff → shell syntax → compose config → throwaway PostgreSQL 17 →
-# pytest (unit + Alembic migrations + app smoke tests) → production image:
+# pytest (unit + Alembic migrations + app smoke tests) → Android app unit tests
+# (when an Android SDK is installed) → production image:
 # `alembic upgrade head` on the v2 schema + gunicorn boot + /healthz.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -83,6 +84,15 @@ fi
 # ------------------------------------------------------------------ tests
 step "Tests: unit + migrations + smoke"
 TEST_POSTGRES_PORT="$PG_PORT" "$PY" -m pytest -q
+
+step "Android app (EMB Relais): unit tests + debug build"
+SDK="${ANDROID_HOME:-$HOME/Android/Sdk}"
+if [[ -d "$SDK/platforms" ]] && command -v java >/dev/null; then
+    (cd android && ANDROID_HOME="$SDK" ./gradlew --console=plain -q :app:testDebugUnitTest :app:assembleDebug)
+    echo "ok"
+else
+    echo "  (no Android SDK in $SDK — skipped)"
+fi
 
 # ------------------------------------------------------------------ image
 if [[ "$FAST" == 0 ]]; then
