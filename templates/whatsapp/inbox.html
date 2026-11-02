@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% from 'partials/icons.html' import icon %}
+{% block title %}Listes WhatsApp — {{ branding.name or "Etic'Monts" }}{% endblock %}
+
+{% macro parsed_table(parsed) -%}
+{% set items = parsed|selectattr('kind', 'equalto', 'item')|list %}
+{% if items %}
+<table class="wa-items">
+    <tbody>
+    {% for p in items %}
+    <tr><td>{{ p.product }}</td><td class="num {% if p.qty is none %}muted{% endif %}">{{ p.qty_label }}</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{%- endmacro %}
+
+{% block content %}
+{% with title="Listes reçues", subtitle="Les messages du groupe WhatsApp, transmis par le téléphone relais et regroupés par ferme. La dernière liste de chaque ferme est en tête." %}
+{% include 'whatsapp/_header.html' %}
+{% endwith %}
+
+<div class="wa-toolbar">
+    <span class="muted">Période :</span>
+    {% for d in (3, 7, 14, 30) %}
+    <a class="campaign {% if d == days %}active{% endif %}" href="{{ url_for('relay.inbox', jours=d) }}">{{ d }} jours</a>
+    {% endfor %}
+</div>
+
+{% if unmapped %}
+<section class="card wa-unmapped">
+    <div class="card-header">
+        <h2>À associer à une ferme</h2>
+        <span class="card-badge">{{ unmapped|map(attribute='sender_name')|unique|list|length }} expéditeur(s)</span>
+    </div>
+    <p class="card-sub">Ces personnes ont écrit dans le groupe mais ne sont rattachées à aucune ferme. Associez-les une fois : leurs messages passés et futurs suivront.</p>
+    {% for sender_name, msgs in unmapped|groupby('sender_name') %}
+    {% set s = unmapped_senders.get(sender_name) %}
+    <div class="wa-sender-row">
+        <div class="wa-sender-msg">
+            <strong>{{ sender_name }}</strong> <span class="muted">· {{ msgs|length }} message{{ 's' if msgs|length > 1 else '' }} · {{ msgs[0].posted_at|local_dt }}</span>
+            <p class="wa-body">{{ msgs[0].body }}</p>
+        </div>
+        {% if s %}
+        <form method="post" action="{{ url_for('relay.map_sender', sid=s.id) }}" class="wa-map-form">
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+            <label class="sr-only" for="map-{{ s.id }}">Ferme de {{ sender_name }}</label>
+            <select id="map-{{ s.id }}" name="ferme_id" required>
+                <option value="">Choisir la ferme…</option>
+                {% for f in farm_choices %}<option value="{{ f.id }}">{{ f.label }}</option>{% endfor %}
+                <option value="ignore">— Ignorer cet expéditeur</option>
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Associer</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+{% if farms %}
+<div class="wa-grid">
+    {% for f in farms %}
+    {% set m = f.messages[0] %}
+    <article class="card wa-card {% if m.status != 'new' %}is-done{% endif %}">
+        <header class="wa-card-head">
+            <div>
+                <h2>{{ f.name }}</h2>
+                <span class="muted">{{ m.posted_at|local_dt }} · {{ m.sender_name }}</span>
+            </div>
+            {% if m.status == 'new' %}<span class="role-pill role-pending">à traiter</span>{% else %}<span class="role-pill role-done">traité</span>{% endif %}
+        </header>
+        {{ parsed_table(m.parsed) }}
+        <details class="wa-raw">
+            <summary>Message d'origine</summary>
+            <p class="wa-body">{{ m.body }}</p>
+        </details>
+        {% if f.messages|length > 1 %}
+        <details class="wa-raw">
+            <summary>{{ f.messages|length - 1 }} message{{ 's' if f.messages|length > 2 else '' }} plus ancien{{ 's' if f.messages|length > 2 else '' }}</summary>
+            {% for old in f.messages[1:] %}
+            <div class="wa-old">
+                <span class="muted">{{ old.posted_at|local_dt }}</span>
+                <p class="wa-body">{{ old.body }}</p>
+            </div>
+            {% endfor %}
+        </details>
+        {% endif %}
+        <footer class="wa-card-foot">
+            <form method="post" action="{{ url_for('relay.message_status', mid=m.id) }}">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                {% if m.status == 'new' %}
+                <input type="hidden" name="status" value="done">
+                <button class="btn btn-secondary btn-sm" type="submit">{{ icon('check', 'icon-sm') }} Marquer traité</button>
+                {% else %}
+                <input type="hidden" name="status" value="new">
+                <button class="btn btn-ghost btn-sm" type="submit">Remettre à traiter</button>
+                {% endif %}
+            </form>
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% elif not unmapped %}
+<div class="empty-state">
+    <h3>Aucun message sur les {{ days }} derniers jours</h3>
+    <p>Les listes arrivent ici dès que le téléphone relais est configuré et qu'une ferme écrit dans le groupe. Voir <a href="{{ url_for('relay.devices') }}">Téléphone relais</a>.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -117,15 +117,22 @@ def _register_blueprints(app: Flask, cfg) -> None:
         for bp in (products_bp, stocks_bp, clients_bp, orders_bp, tournees_bp, public_bp):
             app.register_blueprint(bp)
 
+    # ---- WhatsApp relay: API for the Android app + admin inbox ----
+    if cfg.has("whatsapp"):
+        from .blueprints.relay import api as relay_api, bp as relay_bp
+        app.register_blueprint(relay_api)
+        app.register_blueprint(relay_bp)
+
 
 def _register_template_helpers(app: Flask, cfg) -> None:
     from .security import is_admin
     from .settings_store import get_branding
-    from .formatting import fr_num, fr_money, input_num
+    from .formatting import fr_num, fr_money, input_num, local_dt
 
     app.add_template_filter(fr_num, "fr_num")
     app.add_template_filter(fr_money, "fr_money")
     app.add_template_filter(input_num, "input_num")
+    app.add_template_filter(lambda v: local_dt(v, cfg.timezone), "local_dt")
 
     static_version = _static_fingerprint(app.static_folder)
 
@@ -136,6 +143,13 @@ def _register_template_helpers(app: Flask, cfg) -> None:
         if cfg.has("cout_revient"):
             from .production_cost import known_crops
             crops = known_crops()
+        relay_new_count = 0
+        if cfg.has("whatsapp") and session.get("role") == "admin":
+            try:
+                from .relay import new_count
+                relay_new_count = new_count()
+            except Exception:
+                log.exception("relay count failed")
         uid = session.get("user_id")
         if uid:
             try:
@@ -155,6 +169,7 @@ def _register_template_helpers(app: Flask, cfg) -> None:
             "production_crops": crops,
             "user_photo": user_photo,
             "user_photo_version": photo_version,
+            "relay_new_count": relay_new_count,
         }
 
     @app.errorhandler(403)

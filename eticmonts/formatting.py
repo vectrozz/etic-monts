@@ -26,6 +26,22 @@ def fr_money(value, decimals: int = 2, empty: str = "—") -> str:
     return out if out == empty else f"{out}{NNBSP}€"
 
 
+_DAYS = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
+
+
+def local_dt(value, tz_name: str = "Europe/Paris", with_day: bool = True) -> str:
+    """'lun. 02/11 14:32' in the app timezone (database timestamps are UTC)."""
+    if _blank(value):
+        return "—"
+    from zoneinfo import ZoneInfo
+    try:
+        dt = value.astimezone(ZoneInfo(tz_name))
+    except (AttributeError, ValueError):
+        return str(value)
+    day = f"{_DAYS[dt.weekday()]} " if with_day else ""
+    return f"{day}{dt:%d/%m %H:%M}"
+
+
 def input_num(value) -> str:
     """Value for an <input type=number>: '12' not '12.0', '' for None."""
     if _blank(value):

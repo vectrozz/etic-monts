@@ -12,7 +12,7 @@ from eticmonts.schema_version import expected_head
 
 
 def test_single_linear_head():
-    assert expected_head() == "0004"
+    assert expected_head() == "0005"
 
 
 @pytest.mark.db
@@ -20,12 +20,13 @@ def test_fresh_database_upgrade_downgrade_upgrade(fresh_db):
     upgrade(fresh_db)
     assert revision_of(fresh_db) == expected_head()
     assert {"fermes", "surface", "biodiv", "app_settings", "catalog_items",
-            "production_cost", "products", "orders", "tournees"} <= tables(fresh_db)
+            "production_cost", "products", "orders", "tournees",
+            "relay_devices", "chat_messages", "chat_senders"} <= tables(fresh_db)
     assert {"variety", "yield_kg", "sale_price", "hourly_cost", "charges"} <= columns(fresh_db, "production_cost")
 
     downgrade(fresh_db, "0001")
     assert revision_of(fresh_db) == "0001"
-    assert not {"app_settings", "production_cost", "products"} & tables(fresh_db)
+    assert not {"app_settings", "production_cost", "products", "chat_messages"} & tables(fresh_db)
     assert "role" not in columns(fresh_db, "fermes")
 
     upgrade(fresh_db)

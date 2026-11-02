@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Expéditeurs WhatsApp — {{ branding.name or "Etic'Monts" }}{% endblock %}
+
+{% block content %}
+{% with title="Expéditeurs", subtitle="Chaque personne du groupe, telle qu'elle apparaît sur le téléphone relais (nom du contact ou numéro), rattachée à sa ferme." %}
+{% include 'whatsapp/_header.html' %}
+{% endwith %}
+
+{% if senders %}
+<div class="table-wrapper">
+    <table>
+        <thead><tr><th>Nom sur le téléphone</th><th class="num">Messages</th><th>Dernier message</th><th>Ferme</th></tr></thead>
+        <tbody>
+        {% for s in senders %}
+        <tr>
+            <td><strong>{{ s.sender_name }}</strong></td>
+            <td class="num">{{ s.messages }}</td>
+            <td class="num">{{ s.last_at|local_dt }}</td>
+            <td>
+                <form method="post" action="{{ url_for('relay.map_sender', sid=s.id) }}" class="wa-inline">
+                    <label class="sr-only" for="sender-{{ s.id }}">Ferme de {{ s.sender_name }}</label>
+                    <select id="sender-{{ s.id }}" name="ferme_id">
+                        <option value="" {% if not s.ferme_id and not s.ignored %}selected{% endif %}>— non associé</option>
+                        {% for f in farm_choices %}<option value="{{ f.id }}" {% if s.ferme_id == f.id %}selected{% endif %}>{{ f.label }}</option>{% endfor %}
+                        <option value="ignore" {% if s.ignored %}selected{% endif %}>Ignorer (ex. coordinateur)</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" type="submit">Enregistrer</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state"><h3>Aucun expéditeur pour l'instant</h3><p>Ils apparaissent automatiquement au premier message reçu.</p></div>
+{% endif %}
+{% endblock %}

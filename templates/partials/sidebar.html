@@ -50,6 +50,17 @@
         </li>
         {% endif %}
 
+        {% if feature('whatsapp') and is_admin() %}
+        <li class="nav-group" data-section="whatsapp">
+            <button type="button" class="nav-section" aria-expanded="true">WhatsApp</button>
+            <ul class="nav-items">
+                <li><a href="{{ url_for('relay.inbox') }}" class="{% if ep.startswith('relay.') %}active{% endif %}">
+                    {{ icon('chat') }} Listes reçues
+                    {% if relay_new_count %}<span class="nav-badge">{{ relay_new_count }}</span>{% endif %}</a></li>
+            </ul>
+        </li>
+        {% endif %}
+
         {% if feature('marketplace') %}
         <li class="nav-group" data-section="marketplace">
             <button type="button" class="nav-section" aria-expanded="true">Marketplace</button>

@@ -16,7 +16,8 @@ def _bool(name: str, default: bool = False) -> bool:
 # opt-in through the FEATURES env var (comma-separated, or "all").
 #   cout_revient  — coût de revient par culture (fraise)
 #   marketplace   — produits, stocks, clients, commandes, liens clients, tournées
-KNOWN_FEATURES = frozenset({"cout_revient", "marketplace"})
+#   whatsapp      — listes des fermes reçues du groupe WhatsApp via l'app Android « EMB Relais »
+KNOWN_FEATURES = frozenset({"cout_revient", "marketplace", "whatsapp"})
 DEFAULT_FEATURES = "cout_revient"
 
 

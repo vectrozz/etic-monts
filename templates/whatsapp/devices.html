@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from 'partials/icons.html' import icon %}
+{% block title %}Téléphone relais — {{ branding.name or "Etic'Monts" }}{% endblock %}
+
+{% block content %}
+{% with title="Téléphone relais", subtitle="Un téléphone Android membre du groupe WhatsApp transmet les messages du groupe grâce à l'application « EMB Relais ». Elle lit uniquement les notifications du ou des groupes indiqués ; WhatsApp n'est pas modifié." %}
+{% include 'whatsapp/_header.html' %}
+{% endwith %}
+
+{% if created %}
+<section class="card wa-pair">
+    <div class="card-header"><h2>{{ icon('link') }} Associer « {{ created.name }} »</h2><span class="role-pill role-pending">affiché une seule fois</span></div>
+    <ol class="wa-steps">
+        <li>Sur le téléphone, connectez-vous à ce site et ouvrez cette page — ou envoyez-vous ce lien.</li>
+        <li>Touchez le bouton : l'application s'ouvre et s'associe toute seule.</li>
+    </ol>
+    <a class="btn btn-primary btn-lg" href="{{ created.link }}">{{ icon('phone') }} Associer l'application</a>
+    <details class="wa-raw">
+        <summary>Saisie manuelle</summary>
+        <dl class="kv">
+            <div><dt>Serveur</dt><dd><code>{{ created.server }}</code></dd></div>
+            <div><dt>Jeton</dt><dd><code class="wa-token">{{ created.token }}</code></dd></div>
+            {% if created.group %}<div><dt>Groupe</dt><dd><code>{{ created.group }}</code></dd></div>{% endif %}
+        </dl>
+    </details>
+</section>
+{% endif %}
+
+<div class="grid-2">
+    <section class="card">
+        <div class="card-header"><h2>Nouveau téléphone</h2></div>
+        <form method="post" action="{{ url_for('relay.create_device') }}">
+            <div class="form-group">
+                <label for="d-name">Nom du téléphone</label>
+                <input id="d-name" name="name" maxlength="80" placeholder="Téléphone du coordinateur" required>
+            </div>
+            <div class="form-group">
+                <label for="d-group">Nom exact du groupe WhatsApp</label>
+                <input id="d-group" name="group" maxlength="160" placeholder="Producteurs Etic'Monts">
+                <p class="form-hint">Tel qu'il s'affiche dans WhatsApp. Seuls les messages de ce groupe sont transmis (modifiable ensuite dans l'application).</p>
+            </div>
+            <button class="btn btn-primary" type="submit">{{ icon('plus', 'icon-sm') }} Créer et obtenir le lien</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <div class="card-header"><h2>Installation</h2></div>
+        <ol class="wa-steps">
+            <li>Installer « EMB Relais » sur le téléphone{% if relay_apk_url %} : <a href="{{ relay_apk_url }}">télécharger l'APK</a>{% else %} (fichier APK fourni){% endif %} — autoriser l'installation depuis cette source.</li>
+            <li>Créer le téléphone ici, puis toucher <strong>Associer l'application</strong> depuis le téléphone.</li>
+            <li>Dans l'application : <strong>Autoriser l'accès aux notifications</strong>, puis <strong>Ignorer l'optimisation de batterie</strong>.</li>
+            <li>Dans WhatsApp, ne pas mettre le groupe en sourdine : seuls les messages notifiés sont transmis.</li>
+        </ol>
+    </section>
+</div>
+
+<section class="card">
+    <div class="card-header"><h2>Téléphones associés</h2></div>
+    {% if devices %}
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th>Nom</th><th>Dernier contact</th><th>Version</th><th class="num">Messages</th><th>Statut</th><th></th></tr></thead>
+            <tbody>
+            {% for d in devices %}
+            <tr>
+                <td><strong>{{ d.name }}</strong></td>
+                <td class="num">{{ d.last_seen_at|local_dt if d.last_seen_at else 'jamais' }}</td>
+                <td>{{ d.last_app_version or '—' }}</td>
+                <td class="num">{{ d.messages }}</td>
+                <td>{% if d.revoked_at %}<span class="role-pill role-inactive">révoqué</span>{% else %}<span class="role-pill role-done">actif</span>{% endif %}</td>
+                <td>
+                    {% if not d.revoked_at %}
+                    <details class="danger-zone">
+                        <summary class="btn btn-danger btn-sm">Révoquer</summary>
+                        <form method="post" action="{{ url_for('relay.revoke_device', did=d.id) }}" class="todo">
+                            Ce téléphone ne pourra plus envoyer de messages.
+                            <button class="btn btn-danger btn-sm" type="submit">Confirmer</button>
+                        </form>
+                    </details>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="muted">Aucun téléphone associé.</p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% from 'partials/icons.html' import icon %}
+<div class="page-header">
+    <span class="eyebrow">{{ icon('chat', 'icon-sm') }} WhatsApp</span>
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<p class="subtitle">{{ subtitle }}</p>{% endif %}
+</div>
+<nav class="section-tabs" aria-label="WhatsApp">
+    <a class="section-tab {% if request.endpoint == 'relay.inbox' %}active{% endif %}" href="{{ url_for('relay.inbox') }}">Listes par ferme</a>
+    <a class="section-tab {% if request.endpoint == 'relay.messages' %}active{% endif %}" href="{{ url_for('relay.messages') }}">Tous les messages</a>
+    <a class="section-tab {% if request.endpoint == 'relay.senders' %}active{% endif %}" href="{{ url_for('relay.senders') }}">Expéditeurs</a>
+    <a class="section-tab {% if request.endpoint in ('relay.devices', 'relay.create_device') %}active{% endif %}" href="{{ url_for('relay.devices') }}">Téléphone relais</a>
+</nav>

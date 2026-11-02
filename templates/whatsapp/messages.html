@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Messages WhatsApp — {{ branding.name or "Etic'Monts" }}{% endblock %}
+
+{% block content %}
+{% with title="Tous les messages", subtitle="Les 200 derniers messages reçus, du plus récent au plus ancien." %}
+{% include 'whatsapp/_header.html' %}
+{% endwith %}
+
+{% if messages %}
+<div class="table-wrapper">
+    <table>
+        <thead><tr><th>Date</th><th>Expéditeur</th><th>Ferme</th><th>Message</th><th>Statut</th></tr></thead>
+        <tbody>
+        {% for m in messages %}
+        <tr>
+            <td class="num">{{ m.posted_at|local_dt }}</td>
+            <td>{{ m.sender_name }}</td>
+            <td>{% if m.ignored %}<span class="muted">ignoré</span>{% else %}{{ m.farmname or m.login or '—' }}{% endif %}</td>
+            <td class="wa-cell">{{ m.body }}</td>
+            <td>
+                <form method="post" action="{{ url_for('relay.message_status', mid=m.id) }}" class="wa-inline">
+                    <input type="hidden" name="next" value="{{ request.full_path }}">
+                    <label class="sr-only" for="st-{{ m.id }}">Statut</label>
+                    <select id="st-{{ m.id }}" name="status" onchange="this.form.submit()">
+                        {% for v, l in (('new', 'à traiter'), ('done', 'traité'), ('ignored', 'ignoré')) %}
+                        <option value="{{ v }}" {% if m.status == v %}selected{% endif %}>{{ l }}</option>
+                        {% endfor %}
+                    </select>
+                    <noscript><button class="btn btn-sm" type="submit">OK</button></noscript>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state"><h3>Aucun message reçu</h3><p>Configurez d'abord le <a href="{{ url_for('relay.devices') }}">téléphone relais</a>.</p></div>
+{% endif %}
+{% endblock %}

@@ -32,7 +32,8 @@ def test_healthz(prod_app):
     r = prod_app.test_client().get("/healthz")
     assert r.status_code == 200
     body = r.get_json()
-    assert body["status"] == "ok" and body["schema"] == "0004" and body["features"] == ["cout_revient"]
+    from eticmonts.schema_version import expected_head
+    assert body["status"] == "ok" and body["schema"] == expected_head() and body["features"] == ["cout_revient"]
 
 
 def test_login_with_password(prod_app):
