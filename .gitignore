@@ -1,5 +1,7 @@
 # Python
 .venv/
+.venv-ci/
+.ruff_cache/
 .pythonvenv/
 __pycache__/
 *.pyc
@@ -17,6 +19,8 @@ static/uploads/
 *.sql
 *.sql.gz
 backups/
+# …except the schema/fake-data fixtures used by the tests
+!tests/fixtures/*.sql
 
 # Local tooling
 .claude/

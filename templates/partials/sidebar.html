@@ -11,7 +11,7 @@
     <div class="sidebar-user">
         <div class="user-avatar">
             {% if user_photo %}
-            <img src="{{ url_for('static', filename=user_photo) }}?v={{ static_version|default('1') }}" alt="Photo de {{ session.username }}">
+            <img src="{{ url_for('static', filename=user_photo) }}?v={{ user_photo_version or static_version }}" alt="Photo de {{ session.username }}">
             {% else %}
             {{ session.username[0]|upper }}
             {% endif %}

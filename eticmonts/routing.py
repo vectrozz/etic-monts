@@ -10,7 +10,7 @@ single 2-opt pass — good enough for tournées of 5-30 stops.
 from __future__ import annotations
 
 from math import asin, cos, radians, sin, sqrt
-from typing import Iterable, Sequence
+from typing import Sequence
 
 
 def haversine_km(a: tuple[float, float], b: tuple[float, float]) -> float:

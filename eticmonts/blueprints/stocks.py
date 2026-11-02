@@ -9,9 +9,9 @@ from datetime import date
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
-from ..db import cursor, execute
+from ..db import execute
 from ..security import (
-    producteur_required, admin_required, login_required, is_admin,
+    producteur_required, is_admin,
     get_session_context,
 )
 from ..settings_store import get_delivery_cycle

@@ -2,6 +2,8 @@
 .gitignore
 .claude
 .venv
+.venv-ci
+.ruff_cache
 .pythonvenv
 **/__pycache__
 **/*.pyc

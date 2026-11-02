@@ -36,6 +36,15 @@ def init_pool(config: Config, minconn: int = 1, maxconn: int = 10) -> None:
         )
 
 
+def close_pool() -> None:
+    """Close every pooled connection (tests, or before re-initialising)."""
+    global _pool
+    with _pool_lock:
+        if _pool is not None:
+            _pool.closeall()
+            _pool = None
+
+
 def _get_pool() -> ThreadedConnectionPool:
     if _pool is None:
         raise RuntimeError("DB pool not initialised; call init_pool() at app startup")

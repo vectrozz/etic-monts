@@ -6,13 +6,12 @@ across both — see `services_order.place_order`.
 """
 from __future__ import annotations
 
-from datetime import date
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from ..db import cursor, execute
 from ..security import (
-    login_required, admin_required, producteur_required, get_session_context,
+    producteur_required, get_session_context,
 )
 
 

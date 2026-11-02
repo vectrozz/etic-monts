@@ -1,16 +1,17 @@
 """Application factory."""
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
-import time
+from datetime import timedelta
 
-from flask import Flask, render_template, session
+from flask import Flask, jsonify, render_template, session
 from flask_bcrypt import Bcrypt
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import load_config
 from .db import init_pool
-from .schema import bootstrap_schema
 
 bcrypt = Bcrypt()
 log = logging.getLogger(__name__)
@@ -18,6 +19,22 @@ log = logging.getLogger(__name__)
 APP_VERSION = "3.1"
 
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+def _static_fingerprint(static_dir: str) -> str:
+    """Short hash of every static asset (except uploads): changes on each deploy
+    that touches CSS/JS/fonts, so `?v=` URLs bust browser caches."""
+    h = hashlib.sha1()
+    for base, dirs, files in os.walk(static_dir):
+        dirs[:] = sorted(d for d in dirs if d != "uploads")
+        for name in sorted(files):
+            path = os.path.join(base, name)
+            try:
+                st = os.stat(path)
+            except OSError:
+                continue
+            h.update(f"{os.path.relpath(path, static_dir)}:{st.st_size}:{int(st.st_mtime)}".encode())
+    return h.hexdigest()[:10]
 
 
 def create_app() -> Flask:
@@ -34,20 +51,42 @@ def create_app() -> Flask:
     app.config["APP_CONFIG"] = cfg
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    # Static files are served by gunicorn behind the host nginx; URLs of CSS/JS
+    # carry ?v=<fingerprint>, uploads carry ?v=<mtime>.
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = timedelta(days=30)
     if cfg.is_production:
         # HTTPS in prod; set SESSION_COOKIE_SECURE=0 to test a prod build over plain HTTP.
         app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "1") != "0"
         if cfg.secret_key == "dev-secret-change-me":
             log.warning("SECRET_KEY is not set — sessions are signed with the dev key.")
+    # The app only listens on 127.0.0.1 behind one reverse proxy (host nginx):
+    # trust its X-Forwarded-For / -Proto / -Host headers.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     bcrypt.init_app(app)
     init_pool(cfg)
-    bootstrap_schema(cfg.features)
+    if os.environ.get("SKIP_SCHEMA_CHECK") != "1":
+        from .schema_version import check_schema
+        log.info("Database schema at revision %s", check_schema())
     _maybe_bootstrap_admin(cfg)
 
     _register_blueprints(app, cfg)
     _register_template_helpers(app, cfg)
+    _register_health(app)
     return app
+
+
+def _register_health(app: Flask) -> None:
+    @app.get("/healthz")
+    def healthz():
+        from .schema_version import current_revision
+        try:
+            rev = current_revision()
+        except Exception:
+            log.exception("health check: database unreachable")
+            return jsonify(status="error", detail="database unreachable"), 503
+        return jsonify(status="ok", version=APP_VERSION, schema=rev,
+                       features=sorted(app.config["APP_CONFIG"].features))
 
 
 def _register_blueprints(app: Flask, cfg) -> None:
@@ -88,16 +127,12 @@ def _register_template_helpers(app: Flask, cfg) -> None:
     app.add_template_filter(fr_money, "fr_money")
     app.add_template_filter(input_num, "input_num")
 
-    # Cache-bust static assets on every deploy (the prod image is rebuilt).
-    try:
-        css_mtime = str(int(os.path.getmtime(os.path.join(app.static_folder, "style.css"))))
-    except OSError:
-        css_mtime = str(int(time.time()))
+    static_version = _static_fingerprint(app.static_folder)
 
     @app.context_processor
     def inject_globals():
         crops: list[dict] = []
-        user_photo = None
+        user_photo = photo_version = None
         if cfg.has("cout_revient"):
             from .production_cost import known_crops
             crops = known_crops()
@@ -107,16 +142,19 @@ def _register_template_helpers(app: Flask, cfg) -> None:
                 from .db import execute
                 row = execute("SELECT photo_path FROM fermes WHERE id = %s", (uid,), fetch="one")
                 user_photo = row[0] if row and row[0] else None
+                if user_photo:
+                    photo_version = int(os.path.getmtime(os.path.join(app.static_folder, user_photo)))
             except Exception:  # never break page rendering on an avatar lookup
                 log.exception("photo lookup failed")
         return {
             "is_admin": is_admin,
             "feature": cfg.has,
             "branding": get_branding(),
-            "static_version": css_mtime,
+            "static_version": static_version,
             "app_version": APP_VERSION,
             "production_crops": crops,
             "user_photo": user_photo,
+            "user_photo_version": photo_version,
         }
 
     @app.errorhandler(403)

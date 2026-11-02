@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Iterable
 
 try:
     from zoneinfo import ZoneInfo  # py>=3.9

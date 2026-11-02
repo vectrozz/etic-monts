@@ -10,7 +10,7 @@ from flask import (
 
 from .. import bcrypt
 from ..db import execute
-from ..security import ROLE_ADMIN, ROLE_PRODUCTEUR, ROLE_CLIENT, login_required
+from ..security import ROLE_ADMIN, ROLE_PRODUCTEUR
 
 
 bp = Blueprint("main", __name__)

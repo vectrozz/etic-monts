@@ -1,0 +1,25 @@
+[project]
+name = "eticmonts"
+version = "3.1"
+description = "Etic'Monts — suivi MAEC, biodiversité et coût de revient des fermes"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+addopts = "-ra -p no:cacheprovider"
+markers = [
+    "db: needs PostgreSQL (TEST_POSTGRES_PORT); skipped otherwise",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = [".claude", "backups"]
+
+[tool.ruff.lint]
+# Pyflakes (undefined names, unused imports/variables) + syntax/runtime errors.
+select = ["E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/versions/*.py" = ["E501"]

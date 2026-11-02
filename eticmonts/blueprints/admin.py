@@ -6,7 +6,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from .. import bcrypt
 from ..db import cursor, execute
 from ..features import feature_enabled
-from ..security import admin_required, get_session_context, ROLE_ADMIN, ROLE_PRODUCTEUR, ROLE_CLIENT, ALL_ROLES
+from ..security import admin_required, get_session_context, ROLE_PRODUCTEUR, ALL_ROLES
 
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")

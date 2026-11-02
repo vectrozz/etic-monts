@@ -1,4 +1,4 @@
-# Etic'Monts — application image (Flask + Gunicorn)
+# Etic'Monts — application image (Flask + Gunicorn, migrations included)
 FROM python:3.12-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -11,8 +11,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Application code
-COPY app.py ./
+# Application code + Alembic migrations
+COPY app.py alembic.ini ./
+COPY migrations/ migrations/
 COPY deploy/gunicorn.conf.py deploy/gunicorn.conf.py
 COPY eticmonts/ eticmonts/
 COPY templates/ templates/
@@ -27,4 +28,6 @@ USER appuser
 
 EXPOSE 8000
 
+# Schema changes are applied explicitly (scripts/deploy.sh runs `alembic upgrade head`);
+# the app refuses to start if the database is not at the expected revision.
 CMD ["gunicorn", "-c", "deploy/gunicorn.conf.py", "app:app"]

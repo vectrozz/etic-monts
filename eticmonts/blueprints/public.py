@@ -10,7 +10,7 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 
 from ..db import execute
 from ..order_service import LineRequest, OrderError, place_order
-from ..schedule import upcoming_slots, is_ordering_open
+from ..schedule import upcoming_slots
 from ..settings_store import (
     get_delivery_cycle, get_branding, get_client_max_upcoming_slots,
 )

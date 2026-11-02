@@ -17,7 +17,7 @@ Production : <https://emb.boblabs.eu>
 
 `FEATURES` est une liste séparée par des virgules (`all` = tout). La
 production tourne avec `FEATURES=cout_revient`. Un module désactivé n'a ni
-routes, ni entrées de menu, ni tables créées.
+routes ni entrées de menu (ses tables existent mais restent vides).
 
 ## Structure
 
@@ -25,57 +25,54 @@ routes, ni entrées de menu, ni tables créées.
 .
 ├── app.py                  point d'entrée WSGI (gunicorn app:app)
 ├── eticmonts/              package Python
-│   ├── __init__.py         application factory, enregistrement des modules
+│   ├── __init__.py         application factory, modules, /healthz
 │   ├── config.py           configuration (variables d'environnement)
-│   ├── schema.py           création / migration idempotente du schéma, par module
+│   ├── schema_version.py   refuse de démarrer si la base n'est pas à jour (Alembic)
 │   ├── production_cost.py  modèle et calcul du coût de revient
 │   ├── blueprints/         routes (main, farm, admin, production_cost, …)
 │   └── …                   services (catalogue, commandes, tournées, …)
+├── migrations/             Alembic : env.py + versions/ (SQL écrit à la main)
 ├── templates/              Jinja (partials/ : sidebar, icônes)
 ├── static/                 CSS, JS, polices et Chart.js servis localement
-├── tests/                  pytest (calcul + smoke tests sur PostgreSQL)
-├── scripts/                backup_db.sh, restore_db.sh, seed_demo.py
-├── deploy/                 gunicorn.conf.py, nginx/
+├── tests/                  pytest : calcul, migrations, smoke tests (+ fixtures/ schéma v2)
+├── scripts/                ci.sh, deploy.sh, backup_db.sh, restore_db.sh, seed_demo.py
+├── deploy/                 gunicorn.conf.py, nginx/ (vhost de l'hôte + certbot)
 ├── docs/                   DEPLOY.md, notes d'intégration
 ├── Dockerfile
-├── docker-compose.yml      dev (Flask + Postgres, tous les modules)
-└── docker-compose.prod.yml prod (gunicorn + nginx + Postgres)
+├── docker-compose.yml      dev : Flask (auto-reload) + Postgres, tous les modules
+├── docker-compose.prod.yml prod : gunicorn sur 127.0.0.1:8085 + Postgres
+├── alembic.ini · pyproject.toml (pytest, ruff) · Makefile
+└── requirements.txt · requirements-dev.txt
 ```
 
 ## Développement local
 
 ```bash
-cp .env.example .env          # puis ajuster (SECRET_KEY, mots de passe…)
-docker compose up --build     # http://localhost:5003, FEATURES=all par défaut
+cp .env.example .env          # puis ajuster si besoin
+make dev                      # = docker compose up --build → http://localhost:5003 (FEATURES=all)
 docker compose exec -e FLASK_ENV=development app-flask python3 scripts/seed_demo.py   # données de démo
 ```
 
-Sans Docker :
+Le conteneur de dev applique les migrations au démarrage (`alembic upgrade
+head`). Nouvelle évolution de schéma : voir [migrations/README.md](migrations/README.md).
+
+## CI locale (avant chaque push)
 
 ```bash
-python3 -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt
-POSTGRES_PORT=5434 FLASK_ENV=development FEATURES=all python app.py   # http://localhost:5010
+make hooks          # une fois : lance la CI automatiquement avant chaque `git push`
+make ci             # = scripts/ci.sh : tout, ≈ 20 s une fois l'image en cache
+make ci-fast        # sans construire l'image Docker
+make ci-dump DUMP=backups/prod_20261102.sql   # + migration d'une copie de vraies données
 ```
 
-Le schéma est créé / mis à jour automatiquement au démarrage
-(`eticmonts/schema.py`, idempotent, compatible avec une base v2).
-
-## Tests
-
-```bash
-pip install pytest
-python -m pytest tests -q                          # calcul du coût de revient
-
-# smoke tests de bout en bout sur une base jetable (jamais la prod) :
-docker run -d --name emb-test -e POSTGRES_USER=eticmont -e POSTGRES_PASSWORD=eticmont \
-    -e POSTGRES_DB=eticmont -p 127.0.0.1:55432:5432 postgres:17
-TEST_POSTGRES_PORT=55432 python -m pytest tests -q
-```
-
-Pour valider une migration, restaurez d'abord un dump de prod dans ce
-conteneur (`psql … < dump.sql`) puis lancez les tests.
+`scripts/ci.sh` (besoin de `python3` et `docker`) : ruff → syntaxe des
+scripts → fichiers compose → PostgreSQL 17 jetable → pytest (calcul du coût
+de revient, migrations Alembic sur base neuve / schéma v2 réel / bases
+pré-Alembic, smoke tests de l'application) → image de prod : migration du
+schéma v2, démarrage gunicorn, `/healthz`. Aucune base existante n'est
+touchée. Sans base, `python -m pytest` ne lance que les tests unitaires.
 
 ## Déploiement
 
-Voir [docs/DEPLOY.md](docs/DEPLOY.md).
+Voir [docs/DEPLOY.md](docs/DEPLOY.md) : `scripts/deploy.sh` sur le VPS
+(sauvegarde → pull → build → migrations → redémarrage → health check).
