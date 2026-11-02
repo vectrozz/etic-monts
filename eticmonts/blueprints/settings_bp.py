@@ -8,6 +8,7 @@ from flask import Blueprint, flash, redirect, render_template, request, session,
 from werkzeug.utils import secure_filename
 
 from ..db import execute
+from ..features import feature_enabled, require_feature
 from ..security import admin_required, login_required, get_session_context
 from ..settings_store import all_settings, get_setting, set_setting
 from ..recurrent_deliveries import (
@@ -154,6 +155,9 @@ def remove_photo():
 def index():
     ctx = get_session_context()
     settings = all_settings()
+    if not feature_enabled("marketplace"):
+        return render_template("settings/index.html", **ctx, settings=settings,
+                               weekday_choices=_DAYS, recurrent_deliveries=[], tournees=[])
     # Load one-off tournées (limit 30, most recent first) so admins can manage
     # exceptional deliveries directly from the Livraison settings page.
     tournees = execute(
@@ -193,6 +197,7 @@ def _form_kwargs() -> dict:
 
 @bp.route("/recurrent/create", methods=["POST"])
 @admin_required
+@require_feature("marketplace")
 def recurrent_create():
     try:
         rd_upsert(rid=None, **_form_kwargs())
@@ -205,6 +210,7 @@ def recurrent_create():
 
 @bp.route("/recurrent/<int:rid>/update", methods=["POST"])
 @admin_required
+@require_feature("marketplace")
 def recurrent_update(rid):
     try:
         rd_upsert(rid=rid, **_form_kwargs())
@@ -217,6 +223,7 @@ def recurrent_update(rid):
 
 @bp.route("/recurrent/<int:rid>/toggle", methods=["POST"])
 @admin_required
+@require_feature("marketplace")
 def recurrent_toggle(rid):
     rd_toggle(rid)
     flash("Statut mis à jour.", "success")
@@ -225,6 +232,7 @@ def recurrent_toggle(rid):
 
 @bp.route("/recurrent/<int:rid>/delete", methods=["POST"])
 @admin_required
+@require_feature("marketplace")
 def recurrent_delete(rid):
     rd_delete(rid)
     flash("Livraison récurrente supprimée.", "success")
@@ -237,6 +245,7 @@ def recurrent_delete(rid):
 
 @bp.route("/client-horizon", methods=["POST"])
 @admin_required
+@require_feature("marketplace")
 def update_client_horizon():
     try:
         n = int(request.form.get("client_max_upcoming_slots") or 2)
@@ -250,6 +259,7 @@ def update_client_horizon():
 
 @bp.route("/delivery-cycle", methods=["POST"])
 @admin_required
+@require_feature("marketplace")
 def update_cycle():
     """Update the global cooperative-wide defaults.
 

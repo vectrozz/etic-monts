@@ -4,17 +4,19 @@
 {% block auth_content %}
 <div class="auth-card">
     <div class="auth-brand">
-        <h1>{{ branding.name or "Etic'Monts" }}</h1>
-        <p>Créer un compte producteur</p>
+        <h1>Créer un compte</h1>
+        <p>Un compte par ferme. Vous pourrez compléter votre profil ensuite.</p>
     </div>
     <form action="{{ url_for('main.register') }}" method="POST">
         <div class="form-group">
             <label for="name">Identifiant</label>
-            <input type="text" id="name" name="name" required autocomplete="username">
+            <input type="text" id="name" name="name" required maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false">
+            <p class="form-hint">20 caractères maximum, utilisé pour vous connecter.</p>
         </div>
         <div class="form-group">
             <label for="userpass">Mot de passe</label>
             <input type="password" id="userpass" name="userpass" required autocomplete="new-password" minlength="8">
+            <p class="form-hint">8 caractères minimum.</p>
         </div>
         <div class="form-group">
             <label for="userpass1">Confirmer le mot de passe</label>
@@ -22,15 +24,15 @@
         </div>
         <div class="form-group">
             <label for="farmname">Nom de la ferme</label>
-            <input type="text" id="farmname" name="farmname">
+            <input type="text" id="farmname" name="farmname" maxlength="100">
         </div>
         <div class="form-group">
-            <label for="adress">Commune de la ferme</label>
-            <input type="text" id="adress" name="adress">
+            <label for="adress">Commune</label>
+            <input type="text" id="adress" name="adress" maxlength="100">
         </div>
         <div class="form-group">
-            <label for="integration_year">Membre depuis</label>
-            <input type="number" min="2010" max="2100" step="1" id="integration_year" name="integration_year" placeholder="2025">
+            <label for="integration_year">Membre du réseau depuis</label>
+            <input type="number" min="2010" max="2100" step="1" id="integration_year" name="integration_year" placeholder="2025" inputmode="numeric">
         </div>
         <button type="submit" class="btn btn-primary btn-block">Créer le compte</button>
     </form>

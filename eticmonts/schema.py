@@ -1,7 +1,15 @@
 """Database schema bootstrap. Idempotent CREATE TABLE / ALTER TABLE statements.
 
-Existing tables (fermes, surface, biodiv, plastique, soil, water, lutte,
-coefbiodiv) are preserved. New marketplace tables are added.
+Statements are grouped per module so that a deployment only creates what it
+actually uses:
+
+* CORE (always)          — legacy MAEC tables (fermes, surface, biodiv, …),
+                           app_settings, catalog_items
+* ``cout_revient``       — production_cost
+* ``marketplace``        — products, stocks, clients, orders, tournées, …
+
+Every statement is safe to re-run on an existing database, including the
+v2 production schema (no UNIQUE on fermes.name, no role column, …).
 """
 from __future__ import annotations
 
@@ -118,10 +126,25 @@ LEGACY_ALTERS_SQL = [
     "ALTER TABLE fermes ADD COLUMN IF NOT EXISTS lat DECIMAL(9,6);",
     "ALTER TABLE fermes ADD COLUMN IF NOT EXISTS lng DECIMAL(9,6);",
     "ALTER TABLE fermes ADD COLUMN IF NOT EXISTS photo_path VARCHAR(255);",
-    "ALTER TABLE products ADD COLUMN IF NOT EXISTS emoji VARCHAR(10);",
+    # v2 databases were created without UNIQUE on fermes.name. Add it when the
+    # data allows it (login relies on names being unique anyway).
+    """DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'fermes'::regclass AND contype = 'u'
+              AND conkey = ARRAY[(SELECT attnum FROM pg_attribute
+                                  WHERE attrelid = 'fermes'::regclass
+                                    AND attname = 'name')]::smallint[]
+        ) AND NOT EXISTS (
+            SELECT 1 FROM fermes GROUP BY name HAVING COUNT(*) > 1
+        ) THEN
+            ALTER TABLE fermes ADD CONSTRAINT fermes_name_key UNIQUE (name);
+        END IF;
+    END $$;""",
 ]
 
-MARKETPLACE_TABLES_SQL = [
+CORE_TABLES_SQL = [
     # ---------------- catalog: reusable values for free-text fields ---------
     """CREATE TABLE IF NOT EXISTS catalog_items (
         id SERIAL PRIMARY KEY,
@@ -134,6 +157,40 @@ MARKETPLACE_TABLES_SQL = [
         UNIQUE (category, value)
     );""",
     "CREATE INDEX IF NOT EXISTS idx_catalog_category ON catalog_items(category);",
+
+    # ---------------- settings (key/value, JSON) ----------------------------
+    """CREATE TABLE IF NOT EXISTS app_settings (
+        key VARCHAR(80) PRIMARY KEY,
+        value JSONB NOT NULL,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );""",
+]
+
+COUT_REVIENT_SQL = [
+    # ---------------- production cost (per crop, per year) -----------------
+    """CREATE TABLE IF NOT EXISTS production_cost (
+        id SERIAL PRIMARY KEY,
+        linked_id INT NOT NULL REFERENCES fermes(id) ON DELETE CASCADE,
+        crop VARCHAR(40) NOT NULL,
+        year INTEGER NOT NULL CHECK (year >= 2010 AND year <= 2100),
+        nb_units INTEGER,
+        surface_m2 DECIMAL(10,2),
+        tasks JSONB NOT NULL DEFAULT '{}',
+        notes TEXT,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (linked_id, crop, year)
+    );""",
+    "CREATE INDEX IF NOT EXISTS idx_prodcost_farm_crop ON production_cost(linked_id, crop);",
+    # v3.1 — full coût de revient (labour cost, inputs, yield, sale price)
+    "ALTER TABLE production_cost ADD COLUMN IF NOT EXISTS variety VARCHAR(120);",
+    "ALTER TABLE production_cost ADD COLUMN IF NOT EXISTS system VARCHAR(30);",
+    "ALTER TABLE production_cost ADD COLUMN IF NOT EXISTS yield_kg DECIMAL(12,2);",
+    "ALTER TABLE production_cost ADD COLUMN IF NOT EXISTS sale_price DECIMAL(10,2);",
+    "ALTER TABLE production_cost ADD COLUMN IF NOT EXISTS hourly_cost DECIMAL(10,2);",
+    "ALTER TABLE production_cost ADD COLUMN IF NOT EXISTS charges JSONB NOT NULL DEFAULT '{}';",
+]
+
+MARKETPLACE_TABLES_SQL = [
 
     # ---------------- products (vegetables) ---------------------------------
     """CREATE TABLE IF NOT EXISTS products (
@@ -149,6 +206,7 @@ MARKETPLACE_TABLES_SQL = [
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );""",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS emoji VARCHAR(10);",
 
     # ---------------- stocks: producer x product, per delivery cycle --------
     # cycle_date NULL = season pool (drains across all upcoming deliveries).
@@ -246,27 +304,7 @@ MARKETPLACE_TABLES_SQL = [
     );""",
     "CREATE INDEX IF NOT EXISTS idx_tournees_date ON tournees(delivery_date);",
 
-    # ---------------- settings (key/value, JSON) ----------------------------
-    """CREATE TABLE IF NOT EXISTS app_settings (
-        key VARCHAR(80) PRIMARY KEY,
-        value JSONB NOT NULL,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );""",
 
-    # ---------------- production cost (per crop, per year) -----------------
-    """CREATE TABLE IF NOT EXISTS production_cost (
-        id SERIAL PRIMARY KEY,
-        linked_id INT NOT NULL REFERENCES fermes(id) ON DELETE CASCADE,
-        crop VARCHAR(40) NOT NULL,
-        year INTEGER NOT NULL CHECK (year >= 2010 AND year <= 2100),
-        nb_units INTEGER,
-        surface_m2 DECIMAL(10,2),
-        tasks JSONB NOT NULL DEFAULT '{}',
-        notes TEXT,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE (linked_id, crop, year)
-    );""",
-    "CREATE INDEX IF NOT EXISTS idx_prodcost_farm_crop ON production_cost(linked_id, crop);",
 
     # ---------------- recurrent deliveries (e.g. Mardi, Vendredi) -----------
     """CREATE TABLE IF NOT EXISTS recurrent_deliveries (
@@ -340,25 +378,34 @@ DEFAULT_SETTINGS = {
 _BOOTSTRAP_LOCK_KEY = 7651_4129_0420_2026
 
 
-def bootstrap_schema() -> None:
-    """Create tables and ensure default settings exist.
+def bootstrap_schema(features: frozenset[str] | set[str] = frozenset()) -> None:
+    """Create the tables needed by the enabled modules and seed default settings.
 
-    Acquires a Postgres session-level advisory lock so that, when the app
-    starts behind gunicorn with multiple workers, exactly one worker runs the
-    DDL. The others wait, then no-op (every statement is idempotent).
+    Runs in a single transaction guarded by a transaction-level advisory lock,
+    so that when gunicorn starts several workers exactly one runs the DDL; the
+    others wait, then no-op (every statement is idempotent). Any failure rolls
+    the whole bootstrap back and surfaces the original error.
     """
     import json
 
     with cursor() as cur:
-        cur.execute("SELECT pg_advisory_lock(%s)", (_BOOTSTRAP_LOCK_KEY,))
-        try:
-            for stmt in LEGACY_TABLES_SQL:
+        cur.execute("SELECT pg_advisory_xact_lock(%s)", (_BOOTSTRAP_LOCK_KEY,))
+
+        for stmt in LEGACY_TABLES_SQL + LEGACY_ALTERS_SQL + CORE_TABLES_SQL:
+            cur.execute(stmt)
+        for key in ("branding", "catalog_categories"):
+            cur.execute(
+                "INSERT INTO app_settings (key, value) VALUES (%s, %s::jsonb) "
+                "ON CONFLICT (key) DO NOTHING",
+                (key, json.dumps(DEFAULT_SETTINGS[key])),
+            )
+
+        if "cout_revient" in features:
+            for stmt in COUT_REVIENT_SQL:
                 cur.execute(stmt)
-            for stmt in LEGACY_ALTERS_SQL:
-                cur.execute(stmt)
-            for stmt in MARKETPLACE_TABLES_SQL:
-                cur.execute(stmt)
-            for stmt in ORDERS_FK_SQL:
+
+        if "marketplace" in features:
+            for stmt in MARKETPLACE_TABLES_SQL + ORDERS_FK_SQL:
                 cur.execute(stmt)
             for key, value in DEFAULT_SETTINGS.items():
                 cur.execute(
@@ -366,26 +413,30 @@ def bootstrap_schema() -> None:
                     "ON CONFLICT (key) DO NOTHING",
                     (key, json.dumps(value)),
                 )
-            # Seed recurrent_deliveries from legacy delivery_cycle if empty
-            cur.execute("SELECT COUNT(*) FROM recurrent_deliveries")
-            if cur.fetchone()[0] == 0:
-                cur.execute("SELECT value FROM app_settings WHERE key = 'delivery_cycle'")
-                row = cur.fetchone()
-                if row:
-                    legacy = row[0]
-                    delivery_wds = legacy.get("delivery_weekdays") or []
-                    cutoff_wds = legacy.get("cutoff_weekdays") or []
-                    cutoff_time = legacy.get("cutoff_time") or "20:00"
-                    max_w = legacy.get("vehicle_max_weight_kg")
-                    max_v = legacy.get("vehicle_max_volume_l")
-                    day_names = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"]
-                    for i, wd in enumerate(delivery_wds):
-                        cw = cutoff_wds[i] if i < len(cutoff_wds) else (wd - 1) % 7
-                        cur.execute(
-                            "INSERT INTO recurrent_deliveries (name, weekday, cutoff_weekday, "
-                            "cutoff_time, vehicle_max_weight_kg, vehicle_max_volume_l) "
-                            "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (weekday) DO NOTHING",
-                            (f"Livraison {day_names[wd]}", wd, cw, cutoff_time, max_w, max_v),
-                        )
-        finally:
-            cur.execute("SELECT pg_advisory_unlock(%s)", (_BOOTSTRAP_LOCK_KEY,))
+            _seed_recurrent_deliveries(cur)
+
+
+def _seed_recurrent_deliveries(cur) -> None:
+    """Seed recurrent_deliveries from the legacy delivery_cycle setting if empty."""
+    cur.execute("SELECT COUNT(*) FROM recurrent_deliveries")
+    if cur.fetchone()[0] != 0:
+        return
+    cur.execute("SELECT value FROM app_settings WHERE key = 'delivery_cycle'")
+    row = cur.fetchone()
+    if not row:
+        return
+    legacy = row[0]
+    delivery_wds = legacy.get("delivery_weekdays") or []
+    cutoff_wds = legacy.get("cutoff_weekdays") or []
+    cutoff_time = legacy.get("cutoff_time") or "20:00"
+    max_w = legacy.get("vehicle_max_weight_kg")
+    max_v = legacy.get("vehicle_max_volume_l")
+    day_names = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    for i, wd in enumerate(delivery_wds):
+        cw = cutoff_wds[i] if i < len(cutoff_wds) else (wd - 1) % 7
+        cur.execute(
+            "INSERT INTO recurrent_deliveries (name, weekday, cutoff_weekday, "
+            "cutoff_time, vehicle_max_weight_kg, vehicle_max_volume_l) "
+            "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (weekday) DO NOTHING",
+            (f"Livraison {day_names[wd]}", wd, cw, cutoff_time, max_w, max_v),
+        )

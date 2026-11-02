@@ -12,6 +12,22 @@ def _bool(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+# Optional modules. The MAEC/biodiversity core is always on; everything else is
+# opt-in through the FEATURES env var (comma-separated, or "all").
+#   cout_revient  — coût de revient par culture (fraise)
+#   marketplace   — produits, stocks, clients, commandes, liens clients, tournées
+KNOWN_FEATURES = frozenset({"cout_revient", "marketplace"})
+DEFAULT_FEATURES = "cout_revient"
+
+
+def _features(raw: str | None) -> frozenset[str]:
+    raw = (raw if raw is not None else DEFAULT_FEATURES).strip().lower()
+    if raw == "all":
+        return KNOWN_FEATURES
+    wanted = {f.strip() for f in raw.split(",") if f.strip()}
+    return frozenset(wanted & KNOWN_FEATURES)
+
+
 @dataclass(frozen=True)
 class Config:
     secret_key: str
@@ -25,10 +41,14 @@ class Config:
     timezone: str
     bootstrap_admin_user: str | None
     bootstrap_admin_password: str | None
+    features: frozenset[str] = frozenset({"cout_revient"})
 
     @property
     def is_production(self) -> bool:
         return self.flask_env == "production"
+
+    def has(self, feature: str) -> bool:
+        return feature in self.features
 
 
 def load_config() -> Config:
@@ -44,4 +64,5 @@ def load_config() -> Config:
         timezone=os.environ.get("APP_TIMEZONE", "Europe/Paris"),
         bootstrap_admin_user=os.environ.get("BOOTSTRAP_ADMIN_USER") or None,
         bootstrap_admin_password=os.environ.get("BOOTSTRAP_ADMIN_PASSWORD") or None,
+        features=_features(os.environ.get("FEATURES")),
     )

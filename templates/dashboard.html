@@ -3,11 +3,21 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Tableau de bord</h1>
-    {% if ferme|length > 0 %}
-    <p class="subtitle">Ferme <strong>{{ ferme[0][1] }}</strong> — {{ ferme[0][2] }}</p>
-    <span class="farm-badge">Membre depuis {{ ferme[0][3] }}</span>
-    {% endif %}
+    <div class="page-header-row">
+        <div>
+            <span class="eyebrow">Tableau de bord MAEC</span>
+            <h1>{% if ferme|length > 0 and ferme[0][1] %}{{ ferme[0][1] }}{% else %}Ma ferme{% endif %}</h1>
+            {% if ferme|length > 0 %}
+            <p class="subtitle">{{ ferme[0][2] or '' }}</p>
+            {% if ferme[0][3] %}<span class="farm-badge">Membre du réseau depuis {{ ferme[0][3] }}</span>{% endif %}
+            {% endif %}
+        </div>
+        {% if feature('cout_revient') and production_crops %}
+        <a class="btn btn-secondary" href="{{ url_for('production_cost.view', crop=production_crops[0].slug) }}">
+            <span aria-hidden="true">{{ production_crops[0].emoji }}</span> Coût de revient {{ production_crops[0].label|lower }}
+        </a>
+        {% endif %}
+    </div>
 </div>
 
 {% if upcoming_slots %}
@@ -284,9 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
 const surfacesData = {{ surfaces|tojson }};
 const biodivData = {{ biodiv|tojson }};
 
-Chart.defaults.color = '#8b8f9a';
-Chart.defaults.borderColor = 'rgba(46,49,58,0.5)';
-const chartColors = ['#4ecdc4','#ff6b6b','#ffd93d','#6bcb77','#a66dd4','#f9844a','#4d96ff'];
+const chartColors = EMBChart.palette();
 
 if (surfacesData.length > 0) {
     new Chart(document.getElementById('surfaceChart'), {

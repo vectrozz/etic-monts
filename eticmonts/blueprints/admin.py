@@ -5,6 +5,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from .. import bcrypt
 from ..db import cursor, execute
+from ..features import feature_enabled
 from ..security import admin_required, get_session_context, ROLE_ADMIN, ROLE_PRODUCTEUR, ROLE_CLIENT, ALL_ROLES
 
 
@@ -53,19 +54,23 @@ def dashboard():
         )
         coefbiodiv = cur.fetchall()
 
-        # Marketplace KPIs
-        cur.execute("SELECT COUNT(*) FROM products WHERE is_active")
-        products_count = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM clients WHERE is_active")
-        clients_count = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0) FROM orders WHERE status != 'cancelled'")
-        row = cur.fetchone()
-        orders_count, orders_total = row[0], float(row[1] or 0)
-        cur.execute(
-            "SELECT delivery_date, COUNT(*) FROM tournees GROUP BY delivery_date "
-            "ORDER BY delivery_date DESC LIMIT 5"
-        )
-        recent_tournees = cur.fetchall()
+        # Marketplace KPIs (only when the module is enabled — its tables may not exist)
+        products_count = clients_count = orders_count = 0
+        orders_total = 0.0
+        recent_tournees = []
+        if feature_enabled("marketplace"):
+            cur.execute("SELECT COUNT(*) FROM products WHERE is_active")
+            products_count = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM clients WHERE is_active")
+            clients_count = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*), COALESCE(SUM(total_amount),0) FROM orders WHERE status != 'cancelled'")
+            row = cur.fetchone()
+            orders_count, orders_total = row[0], float(row[1] or 0)
+            cur.execute(
+                "SELECT delivery_date, COUNT(*) FROM tournees GROUP BY delivery_date "
+                "ORDER BY delivery_date DESC LIMIT 5"
+            )
+            recent_tournees = cur.fetchall()
 
     ratios = [{
         "year": r[0],

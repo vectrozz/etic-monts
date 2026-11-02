@@ -4,18 +4,20 @@ from __future__ import annotations
 import json
 
 from flask import (
-    Blueprint, flash, redirect, render_template, request, session, url_for,
+    Blueprint, abort, current_app, flash, redirect, render_template, request,
+    session, url_for,
 )
 from psycopg2 import errors
 
 from ..db import cursor, execute
-from ..security import login_required, get_session_context, producteur_required
+from ..security import (
+    admin_required, get_session_context, is_admin, login_required, producteur_required,
+)
 from ..catalog_service import (
     EXPLOITATION_CATEGORIES, bump_usage, values_by_category,
 )
 from ..settings_store import get_delivery_cycle
 from ..schedule import upcoming_slots
-from ..config import load_config
 
 
 bp = Blueprint("farm", __name__)
@@ -64,17 +66,28 @@ def dashboard():
     data = fetch_farm_data(ctx["user_id"])
     catalog = values_by_category()
     catalog_labels = {k: l for k, l in EXPLOITATION_CATEGORIES}
-    cfg = load_config()
-    slots = [s.to_dict() for s in upcoming_slots(get_delivery_cycle(), tz_name=cfg.timezone, count=3)]
+    cfg = current_app.config["APP_CONFIG"]
+    slots = []
+    if cfg.has("marketplace"):
+        slots = [s.to_dict() for s in upcoming_slots(get_delivery_cycle(), tz_name=cfg.timezone, count=3)]
     return render_template("dashboard.html", **ctx, **data, catalog=catalog,
                            catalog_labels=catalog_labels, upcoming_slots=slots)
+
+
+def _own_farm_or_admin(idferme: int) -> None:
+    """A farm's detailed data is visible to that farm and to admins only."""
+    if idferme != session.get("user_id") and not is_admin():
+        abort(403)
 
 
 @bp.route("/fiche/<int:idferme>")
 @login_required
 def fiche(idferme):
+    _own_farm_or_admin(idferme)
     ctx = get_session_context()
     data = fetch_farm_data(idferme)
+    if not data["ferme"]:
+        abort(404)
     return render_template("fiche.html", **ctx, **data)
 
 
@@ -83,6 +96,7 @@ def fiche(idferme):
 def biodiv_page(idferme):
     """Kept for backwards compatibility — same view, but biodiv graph also
     appears inline on dashboard now."""
+    _own_farm_or_admin(idferme)
     ctx = get_session_context()
     with cursor() as cur:
         cur.execute("SELECT id, farmname, adress, integration_year FROM fermes WHERE id = %s", (idferme,))
@@ -168,7 +182,7 @@ def addbiodiv():
 
 
 @bp.route("/addcoefbiodiv", methods=["POST"])
-@producteur_required
+@admin_required
 def addcoefbiodiv():
     year = int(request.form["year"])
     fields = ["coefhaie","coefarbrealign","coefarbreseul","coefbosquet","coefmare",

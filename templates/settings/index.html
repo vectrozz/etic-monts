@@ -1,12 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Livraison — Réglages{% endblock %}
+{% block title %}{{ 'Livraison & identité' if feature('marketplace') else 'Identité du réseau' }} — Réglages{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Livraison</h1>
-    <p class="subtitle">Tournées récurrentes, tournées exceptionnelles et paramètres globaux</p>
+    <span class="eyebrow">Réglages</span>
+    {% if feature('marketplace') %}
+    <h1>Livraison &amp; identité</h1>
+    <p class="subtitle">Tournées récurrentes, tournées exceptionnelles, paramètres globaux et identité du réseau.</p>
+    {% else %}
+    <h1>Identité du réseau</h1>
+    <p class="subtitle">Nom et sous-titre affichés dans l'application, adresse de contact.</p>
+    {% endif %}
 </div>
 
+{% if feature('marketplace') %}
 {% set cycle = settings.get('delivery_cycle', {}) %}
 {% set horizon = (settings.get('client_max_upcoming_slots') or {}).get('value', 2) %}
 
@@ -185,6 +192,8 @@
         <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
     </form>
 </div>
+
+{% endif %}
 
 {% set branding_cfg = settings.get('branding', {}) %}
 <div class="card">

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from 'partials/icons.html' import icon %}
+{% block title %}Coût de revient {{ crop.label|lower }} · réseau — {{ branding.name or "Etic'Monts" }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-row">
+        <div>
+            <span class="eyebrow">Coût de revient · administration</span>
+            <h1 class="cr-title"><span class="crop-chip" aria-hidden="true">{{ crop.emoji }}</span>{{ crop.label }} — vue réseau</h1>
+            <p class="subtitle">Toutes les campagnes saisies par les fermes. Les producteurs ne voient que les médianes anonymes (à partir de {{ min_peers }} fermes par campagne).</p>
+        </div>
+        <div class="cr-actions">
+            <a href="{{ url_for('production_cost.view', crop=crop.slug) }}" class="btn btn-ghost">{{ icon('arrow-left', 'icon-sm') }} Ma saisie</a>
+            <a href="{{ url_for('production_cost.network_csv', crop=crop.slug) }}" class="btn btn-secondary">{{ icon('download', 'icon-sm') }} Export CSV</a>
+        </div>
+    </div>
+</div>
+
+{% set farms = entries|map(attribute='linked_id')|unique|list %}
+<div class="stats-grid">
+    <div class="stat-card"><div class="stat-value">{{ farms|length }}</div><div class="stat-label">fermes ayant saisi</div></div>
+    <div class="stat-card"><div class="stat-value">{{ entries|length }}</div><div class="stat-label">campagnes au total</div></div>
+    {% set latest = benchmark|dictsort|last if benchmark else none %}
+    <div class="stat-card"><div class="stat-value">{{ latest[1].cost_per_kg|fr_money if latest else '—' }}</div><div class="stat-label">médiane coût / kg{% if latest %} ({{ latest[0] }}){% endif %}</div></div>
+    <div class="stat-card"><div class="stat-value">{{ latest[1].hours_per_1000m2|fr_num if latest else '—' }}</div><div class="stat-label">médiane h / 1 000 m²{% if latest %} ({{ latest[0] }}){% endif %}</div></div>
+</div>
+
+<section class="card">
+    <div class="card-header"><h2>Campagnes</h2><span class="card-badge">{{ entries|length }}</span></div>
+    {% if entries %}
+    <div class="table-wrapper">
+        <table>
+            <thead><tr>
+                <th>Ferme</th><th>Campagne</th><th>Mode</th><th class="num">Plants</th><th class="num">Surface</th>
+                <th class="num">Récolte</th><th class="num">Heures</th><th class="num">h / 1 000 m²</th>
+                <th class="num">Coût / kg</th><th class="num">Prix / kg</th><th class="num">Marge / kg</th><th class="num">€ / heure</th>
+            </tr></thead>
+            <tbody>
+            {% set systems = {'plein_champ': 'Plein champ', 'abri': 'Abri', 'hors_sol': 'Hors-sol'} %}
+            {% for e in entries %}
+            <tr>
+                <td><strong>{{ e.farmname or e.login }}</strong></td>
+                <td>{{ e.year }}</td>
+                <td class="muted">{{ systems.get(e.system, '—') }}</td>
+                <td class="num">{{ e.nb_units|fr_num }}</td>
+                <td class="num">{{ e.surface_m2|fr_num }} m²</td>
+                <td class="num">{{ e.yield_kg|fr_num }} kg</td>
+                <td class="num">{{ e.calc.hours_total|fr_num }}</td>
+                <td class="num">{{ e.calc.hours_per_1000m2|fr_num }}</td>
+                <td class="num"><strong>{{ e.calc.cost_per_kg|fr_money }}</strong>{% if not e.calc.labour_included and e.calc.cost_per_kg is not none %}<sup title="hors main-d'œuvre">*</sup>{% endif %}</td>
+                <td class="num">{{ e.sale_price|fr_money }}</td>
+                <td class="num {% if e.calc.margin_per_kg is not none %}{{ 'good' if e.calc.margin_per_kg >= 0 else 'bad' }}{% endif %}">{{ e.calc.margin_per_kg|fr_money }}</td>
+                <td class="num">{{ e.calc.hourly_return|fr_money }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="form-hint">* hors main-d'œuvre (coût horaire non renseigné).</p>
+    {% else %}
+    <div class="empty-state">
+        <h3>Aucune campagne saisie pour l'instant</h3>
+        <p>Les fermes saisissent leurs campagnes depuis <strong>Coût de revient → {{ crop.label }}</strong>. Elles apparaîtront ici.</p>
+    </div>
+    {% endif %}
+</section>
+
+<section class="card">
+    <div class="card-header"><h2>Médianes par campagne</h2></div>
+    {% if benchmark %}
+    <div class="table-wrapper">
+        <table>
+            <thead><tr><th>Campagne</th><th class="num">Fermes</th><th class="num">Coût / kg</th><th class="num">h / 1 000 m²</th><th class="num">kg / m²</th><th class="num">Cueillette kg/h</th><th class="num">€ / heure</th></tr></thead>
+            <tbody>
+            {% for y, b in benchmark|dictsort(reverse=true) %}
+            <tr>
+                <td><strong>{{ y }}</strong></td><td class="num">{{ b.n }}</td>
+                <td class="num">{{ b.cost_per_kg|fr_money }}</td><td class="num">{{ b.hours_per_1000m2|fr_num }}</td>
+                <td class="num">{{ b.yield_per_m2|fr_num(2) }}</td><td class="num">{{ b.harvest_kg_per_hour|fr_num(1) }}</td>
+                <td class="num">{{ b.hourly_return|fr_money }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="muted">Aucune campagne ne réunit encore {{ min_peers }} fermes.</p>
+    {% endif %}
+</section>
+{% endblock %}

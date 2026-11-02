@@ -5,7 +5,10 @@ Idempotent: re-running it will not duplicate data. Existing rows for the same
 (user, year) are skipped.
 
 Usage:
-    docker exec eticmonts-app-flask-1 python3 seed_demo.py
+    docker compose exec -e FLASK_ENV=development app-flask python3 scripts/seed_demo.py
+
+Development only: it creates accounts with a known password and inserts demo
+coefficients/products. It refuses to run when FLASK_ENV=production.
 """
 from __future__ import annotations
 
@@ -194,6 +197,9 @@ def biodiv_score(prairie: float, b: dict) -> float:
 
 # ---------------------------------------------------------------------------
 def main() -> None:
+    if os.environ.get("FLASK_ENV", "production") == "production":
+        raise SystemExit("seed_demo.py refuses to run with FLASK_ENV=production "
+                         "(it creates accounts with a known password).")
     c = conn()
     cur = c.cursor()
 

@@ -1,41 +1,74 @@
+{% from 'partials/icons.html' import icon, brand_mark %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}{{ branding.name or "Etic'Monts" }}{% endblock %}</title>
+    <meta name="description" content="{{ branding.name or "Etic'Monts" }} — {{ branding.subtitle or 'Coopérative de producteurs' }} : suivi MAEC, biodiversité et coût de revient des cultures.">
+    <meta name="theme-color" content="#f4f2ea" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#111512" media="(prefers-color-scheme: dark)">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+    <link rel="preload" href="{{ url_for('static', filename='fonts/geist-latin-wght.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ url_for('static', filename='fonts/fraunces-latin-opsz.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <script>
+        /* Apply the saved theme before first paint (no flash). */
+        (function () { try { var t = localStorage.getItem('emb-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {} })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ static_version|default('1') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     {% block head %}{% endblock %}
 </head>
 <body>
+    <a class="skip-link" href="#main">Aller au contenu</a>
     {% if session.get('username') %}
+    <header class="topbar">
+        <a class="brand" href="{{ url_for('farm.dashboard') }}">{{ brand_mark() }} {{ branding.name or "Etic'Monts" }}</a>
+        <button type="button" class="nav-toggle" aria-controls="sidebar" aria-expanded="false" aria-label="Ouvrir le menu">{{ icon('menu') }}</button>
+    </header>
     {% include 'partials/sidebar.html' %}
-    <main class="main-content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="flash-container">
-            {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">{{ message }}</div>
-            {% endfor %}
+    <div class="scrim" data-nav-close></div>
+    <main class="main-content" id="main">
+        <div class="main-inner">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-container" role="status">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+            <footer class="app-footer">
+                <span>{{ branding.name or "Etic'Monts" }} — {{ branding.subtitle or "Coopérative de producteurs" }}</span>
+                <span>v{{ app_version }}{% if branding.support_email %} · <a href="mailto:{{ branding.support_email }}">{{ branding.support_email }}</a>{% endif %}</span>
+            </footer>
         </div>
-        {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
-        <footer class="app-footer">{{ branding.name or "Etic'Monts" }} &mdash; {{ branding.subtitle or "Coopérative" }} &mdash; v3.0</footer>
     </main>
+    <script src="{{ url_for('static', filename='vendor/chart-4.4.1.umd.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ static_version|default('1') }}"></script>
     {% else %}
     <div class="auth-wrapper">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="flash-container">
-            {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">{{ message }}</div>
-            {% endfor %}
-        </div>
-        {% endif %}
-        {% endwith %}
-        {% block auth_content %}{% endblock %}
+        <aside class="auth-aside">
+            <img class="contours" src="{{ url_for('static', filename='img/contours.svg') }}" alt="">
+            <div class="brand-row">{{ brand_mark() }}<span>{{ branding.name or "Etic'Monts" }}</span></div>
+            {% block aside %}
+            <blockquote>Des données de ferme au service du <em>collectif</em>.</blockquote>
+            {% endblock %}
+            <p class="aside-foot">{{ branding.subtitle or "Coopérative de producteurs" }} · suivi MAEC, biodiversité et coût de revient des cultures.</p>
+        </aside>
+        <main class="auth-main" id="main">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-container" role="status">
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+            {% block auth_content %}{% endblock %}
+        </main>
     </div>
     {% endif %}
     {% block scripts %}{% endblock %}

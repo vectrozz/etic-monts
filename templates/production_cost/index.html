@@ -1,121 +1,322 @@
 {% extends "base.html" %}
-{% block title %}Coût de production — {{ crop_def.label }}{% endblock %}
+{% from 'partials/icons.html' import icon %}
+{% block title %}Coût de revient {{ crop.label|lower }} — {{ branding.name or "Etic'Monts" }}{% endblock %}
+
+{% set cur = current or {} %}
+{% set cur_tasks = cur.tasks or {} %}
+{% set cur_charges = cur.charges or {} %}
+{% set year = cur.year if current else suggested_year %}
+{% set bench = benchmark.get(year) %}
+
+{% macro num(name, value, unit, placeholder='', extra='') -%}
+<div class="affix" style="--u: {{ unit|length }}">
+    <input type="number" step="any" min="0" inputmode="decimal" id="f-{{ name }}" name="{{ name }}"
+           value="{{ value|input_num }}" placeholder="{{ placeholder }}" {{ extra }}>
+    <span class="unit">{{ unit }}</span>
+</div>
+{%- endmacro %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Coût de production — {{ crop_def.label }}</h1>
-    <p class="subtitle">
-        Temps de travaux en heures par tâche et par année.
-        Une colonne par année renseignée ; saisissez la suivante dans la colonne « Ajouter ».
-    </p>
-</div>
-
-<div class="instructions">
-    <strong>Mode d'emploi :</strong> renseignez le nombre de plants et la surface (m²)
-    pour permettre le calcul du <strong>temps par 1000 m²</strong>, qui sert de comparatif
-    entre fermes et entre années. Le total des heures est calculé automatiquement.
-</div>
-
-<div class="card">
-    <div class="card-header">
-        <h2>{{ crop_def.label }} — {{ rows|length }} année{{ 's' if rows|length > 1 else '' }}</h2>
-        <span class="card-badge">Unité : {{ crop_def.unit_label_full }}</span>
+    <div class="page-header-row">
+        <div>
+            <span class="eyebrow">Coût de revient</span>
+            <h1 class="cr-title"><span class="crop-chip" aria-hidden="true">{{ crop.emoji }}</span>{{ crop.label }}</h1>
+            <p class="subtitle">Ce que vous coûte réellement un kilo de {{ crop.label|lower }}s, campagne par campagne : main-d'œuvre, intrants et structure, rapportés à votre récolte.</p>
+        </div>
+        {% if is_admin() %}
+        <a href="{{ url_for('production_cost.network', crop=crop.slug) }}" class="btn btn-secondary">{{ icon('chart') }} Vue réseau</a>
+        {% endif %}
     </div>
-    <div class="table-wrapper">
-        <table>
-            <tr>
-                <th class="row-label">Champ</th>
-                {% for r in rows %}<th>{{ r.year }}</th>{% endfor %}
-                <th style="background:var(--accent-glow);color:var(--accent);">Ajouter</th>
-            </tr>
+</div>
 
-            <tr>
-                <td class="row-label">Année</td>
-                {% for r in rows %}<td>{{ r.year }}</td>{% endfor %}
-                <td><input type="number" form="form-pc" name="year" min="2010" max="2100" step="1" required style="width:90px;text-align:center"></td>
-            </tr>
+<nav class="campaigns" aria-label="Campagnes">
+    {% for e in entries %}
+    <a href="{{ url_for('production_cost.view', crop=crop.slug, annee=e.year) }}"
+       class="campaign {% if current and e.year == current.year %}active{% endif %}"
+       {% if current and e.year == current.year %}aria-current="page"{% endif %}>{{ e.year }}</a>
+    {% endfor %}
+    <a href="{{ url_for('production_cost.view', crop=crop.slug, annee=new_key) }}"
+       class="campaign new {% if not current %}active{% endif %}">{{ icon('plus', 'icon-sm') }} Nouvelle campagne</a>
+</nav>
 
-            <tr>
-                <td class="row-label">Nombre de {{ crop_def.unit_label }}</td>
-                {% for r in rows %}<td>{{ r.nb_units or '—' }}</td>{% endfor %}
-                <td><input type="number" form="form-pc" name="nb_units" min="0" step="1" placeholder="ex: 4000"></td>
-            </tr>
+<div class="cr-layout">
+    <form id="cr-form" class="cr-form" action="{{ url_for('production_cost.save', crop=crop.slug) }}" method="POST" novalidate>
 
-            <tr>
-                <td class="row-label">Surface (m²)</td>
-                {% for r in rows %}<td>{{ r.surface_m2 or '—' }}</td>{% endfor %}
-                <td><input type="number" form="form-pc" name="surface_m2" min="0" step="0.01" placeholder="ex: 1000" class="pc-surface"></td>
-            </tr>
+        {# ---------------------------------------------------------- 1. culture #}
+        <section class="card" aria-labelledby="s-culture">
+            <div class="cr-section-head">
+                <h2 id="s-culture"><span class="step">1</span> La culture</h2>
+                {% if not current and previous %}
+                <button type="button" class="btn btn-ghost btn-sm" data-copy-previous>{{ icon('copy', 'icon-sm') }} Reprendre {{ previous.year }}</button>
+                {% endif %}
+            </div>
+            <p class="cr-lede">{% if current %}Campagne {{ current.year }}{% if current.updated_at %} · modifiée le {{ current.updated_at.strftime('%d/%m/%Y') }}{% endif %}.{% else %}Nouvelle campagne — commencez par l'année, la surface et la récolte.{% endif %}</p>
+            <div class="fields fields-3">
+                <div class="field">
+                    <label class="field-label" for="f-year">Année de campagne</label>
+                    {% if current %}
+                    <input type="hidden" name="year" value="{{ current.year }}">
+                    <input type="text" id="f-year" value="{{ current.year }}" readonly>
+                    {% else %}
+                    <input type="number" id="f-year" name="year" min="2010" max="2100" step="1" inputmode="numeric" value="{{ suggested_year }}" required>
+                    {% endif %}
+                </div>
+                <div class="field">
+                    <label class="field-label" for="f-variety">Variété(s)</label>
+                    <input type="text" id="f-variety" name="variety" value="{{ cur.variety or '' }}" maxlength="120" placeholder="Gariguette, Mara des bois…">
+                </div>
+                <div class="field">
+                    <label class="field-label" for="f-system">Mode de culture</label>
+                    <select id="f-system" name="system">
+                        <option value="">—</option>
+                        {% for k, label in crop.systems %}
+                        <option value="{{ k }}" {% if cur.system == k %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="field-label" for="f-nb_units">Nombre de {{ crop.unit_label }}</label>
+                    {{ num('nb_units', cur.nb_units, crop.unit_label, '4 000') }}
+                </div>
+                <div class="field">
+                    <label class="field-label" for="f-surface_m2">Surface cultivée</label>
+                    {{ num('surface_m2', cur.surface_m2, 'm²', '1 000') }}
+                </div>
+                <div class="field">
+                    <label class="field-label" for="f-yield_kg">Récolte commercialisée</label>
+                    {{ num('yield_kg', cur.yield_kg, 'kg', '2 400') }}
+                </div>
+                <div class="field">
+                    <label class="field-label" for="f-sale_price">Prix de vente moyen</label>
+                    {{ num('sale_price', cur.sale_price, '€/kg', '8,50') }}
+                    <p class="form-hint">Moyenne tous circuits, hors taxes.</p>
+                </div>
+            </div>
+        </section>
 
-            {% for key, label in crop_def.tasks %}
-            <tr>
-                <td class="row-label">{{ label }}</td>
-                {% for r in rows %}<td>{{ r.tasks.get(key, '') or '—' }}</td>{% endfor %}
-                <td><input type="number" form="form-pc" name="{{ key }}" min="0" step="0.1" class="pc-task" placeholder="Heures"></td>
-            </tr>
-            {% endfor %}
-
-            <tr class="row-total">
-                <td class="row-label"><strong>Total (Heures)</strong></td>
-                {% for r in rows %}<td><strong>{{ r.total_hours }}</strong></td>{% endfor %}
-                <td><input type="number" id="pc-total" class="computed-field" readonly tabindex="-1" value="0"></td>
-            </tr>
-
-            <tr class="row-total">
-                <td class="row-label"><strong>Heures / 1000 m²</strong></td>
-                {% for r in rows %}<td><strong>{{ r.per_1000m2 if r.per_1000m2 is not none else '—' }}</strong></td>{% endfor %}
-                <td><input type="number" id="pc-per1000" class="computed-field" readonly tabindex="-1" value="—"></td>
-            </tr>
-
-            <tr>
-                <td class="row-label">Notes</td>
-                {% for r in rows %}<td style="white-space:normal;max-width:180px;">{{ r.notes or '' }}</td>{% endfor %}
-                <td><input type="text" form="form-pc" name="notes" placeholder="Notes libres"></td>
-            </tr>
-
-            <tr>
-                <td class="row-label">Actions</td>
-                {% for r in rows %}
-                <td>
-                    <form action="{{ url_for('production_cost.delete', crop=crop, cid=r.id) }}"
-                          method="POST" onsubmit="return confirm('Supprimer cette année ?');">
-                        <button type="submit" class="btn btn-danger btn-sm">Suppr</button>
-                    </form>
-                </td>
+        {# ---------------------------------------------------------- 2. travail #}
+        <section class="card" aria-labelledby="s-travail">
+            <div class="cr-section-head">
+                <h2 id="s-travail"><span class="step">2</span> Temps de travail</h2>
+                <span class="section-total"><span data-out="hours_total">{{ calc.hours_total|fr_num(1) }}</span> <small>h</small></span>
+            </div>
+            <p class="cr-lede">Heures passées sur la culture pendant la campagne, toutes personnes confondues (exploitant·es, salarié·es, saisonnier·es).</p>
+            <div class="rate-row">
+                <p><strong>Coût horaire de la main-d'œuvre.</strong> Salaire chargé moyen, ou la rémunération que vous visez pour votre propre travail.</p>
+                <div class="field">
+                    <label class="sr-only" for="f-hourly_cost">Coût horaire</label>
+                    {{ num('hourly_cost', cur.hourly_cost, '€/h', '16') }}
+                </div>
+            </div>
+            <div class="line-list">
+                {% for t in crop.tasks %}
+                <div class="line {% if t.key == 'recolte' %}is-key{% endif %}">
+                    <label for="f-task_{{ t.key }}">{{ t.label }}{% if t.hint %}<small>{{ t.hint }}</small>{% endif %}</label>
+                    {{ num('task_' ~ t.key, cur_tasks.get(t.key), 'h', '', 'data-group=tasks data-key=' ~ t.key) }}
+                </div>
                 {% endfor %}
-                <td>
-                    <form id="form-pc" action="{{ url_for('production_cost.upsert', crop=crop) }}" method="POST">
-                        <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
-                    </form>
-                </td>
-            </tr>
-        </table>
-    </div>
+            </div>
+        </section>
+
+        {# ---------------------------------------------------------- 3. intrants #}
+        <section class="card" aria-labelledby="s-intrants">
+            <div class="cr-section-head">
+                <h2 id="s-intrants"><span class="step">3</span> Intrants</h2>
+                <span class="section-total"><span data-out="inputs_total">{{ calc.inputs_total|fr_money(0) }}</span></span>
+            </div>
+            <p class="cr-lede">Achats consommés par la culture sur la campagne, en euros hors taxes.</p>
+            <div class="line-list">
+                {% for c in crop.inputs %}
+                <div class="line">
+                    <label for="f-charge_{{ c.key }}">{{ c.label }}{% if c.hint %}<small>{{ c.hint }}</small>{% endif %}</label>
+                    {{ num('charge_' ~ c.key, cur_charges.get(c.key), '€', '', 'data-group=inputs data-key=' ~ c.key) }}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        {# ---------------------------------------------------------- 4. structure #}
+        <section class="card" aria-labelledby="s-structure">
+            <div class="cr-section-head">
+                <h2 id="s-structure"><span class="step">4</span> Structure &amp; amortissements</h2>
+                <span class="section-total"><span data-out="structure_total">{{ calc.structure_total|fr_money(0) }}</span></span>
+            </div>
+            <p class="cr-lede">La part de vos charges fixes à imputer à cette culture pour l'année (ex. un tunnel de 9 000 € amorti sur 10 ans, utilisé à moitié pour la fraise : 450 €).</p>
+            <div class="line-list">
+                {% for c in crop.structure %}
+                <div class="line">
+                    <label for="f-charge_{{ c.key }}">{{ c.label }}{% if c.hint %}<small>{{ c.hint }}</small>{% endif %}</label>
+                    {{ num('charge_' ~ c.key, cur_charges.get(c.key), '€', '', 'data-group=structure data-key=' ~ c.key) }}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="card" aria-labelledby="s-notes">
+            <div class="cr-section-head"><h2 id="s-notes">Notes</h2></div>
+            <label class="sr-only" for="f-notes">Notes</label>
+            <textarea id="f-notes" name="notes" rows="3" placeholder="Aléas climatiques, changement de variété, nouvel abri…">{{ cur.notes or '' }}</textarea>
+        </section>
+
+        <div class="cr-actions">
+            <div class="left">
+                <button type="submit" class="btn btn-primary btn-lg">{{ icon('check') }} Enregistrer la campagne</button>
+                <button type="button" class="btn btn-ghost" onclick="window.print()">{{ icon('printer') }} Imprimer</button>
+            </div>
+            {% if current %}
+            <details class="danger-zone">
+                <summary class="btn btn-danger">{{ icon('trash', 'icon-sm') }} Supprimer {{ current.year }}</summary>
+                <div class="todo" style="margin-top:8px">
+                    Supprimer définitivement la campagne {{ current.year }} ?
+                    <button type="submit" form="cr-delete" class="btn btn-danger btn-sm" style="margin-left:8px">Oui, supprimer</button>
+                </div>
+            </details>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if current %}
+    <form id="cr-delete" action="{{ url_for('production_cost.delete', crop=crop.slug, cid=current.id) }}" method="POST" hidden></form>
+    {% endif %}
+
+    {# ------------------------------------------------------------- result #}
+    <aside class="result-panel" aria-label="Résultat" aria-live="polite">
+        <div class="result-hero">
+            <div class="label">Coût de revient {{ year }}</div>
+            <div class="figure-xl"><span data-out="cost_per_kg">{{ calc.cost_per_kg|fr_num(2) }}</span><span class="per">€/kg</span></div>
+            <div class="caveat" data-show="no_labour" {% if calc.labour_included %}hidden{% endif %}>Hors main-d'œuvre : renseignez un coût horaire.</div>
+            <div class="margin-chip" data-out-class="margin_per_kg">
+                <span data-out="margin_label">{% if calc.margin_per_kg is not none %}Marge {{ calc.margin_per_kg|fr_money }}/kg{% else %}Marge : indiquez le prix de vente{% endif %}</span>
+            </div>
+        </div>
+        <div class="result-body">
+            <div>
+                <div class="stack-bar" role="img" aria-label="Répartition du coût">
+                    <span class="seg-labour" data-bar="share_labour" style="width:{{ calc.share_labour or 0 }}%"></span>
+                    <span class="seg-inputs" data-bar="share_inputs" style="width:{{ calc.share_inputs or 0 }}%"></span>
+                    <span class="seg-structure" data-bar="share_structure" style="width:{{ calc.share_structure or 0 }}%"></span>
+                </div>
+                <div class="legend">
+                    {% for key, cls, label, amount in [('share_labour', 'seg-labour', "Main-d'œuvre", 'labour_cost'), ('share_inputs', 'seg-inputs', 'Intrants', 'inputs_total'), ('share_structure', 'seg-structure', 'Structure', 'structure_total')] %}
+                    <div><i class="{{ cls }}"></i><span>{{ label }}</span><span class="amt" data-out="{{ amount }}">{{ calc[amount]|fr_money(0) }}</span><span class="pct" data-out="{{ key }}" data-fmt="pct">{{ (calc[key]|fr_num(0) ~ ' %') if calc[key] is not none else '—' }}</span></div>
+                    {% endfor %}
+                </div>
+            </div>
+            <dl class="kv">
+                <div><dt>Coût total</dt><dd data-out="total_cost">{{ calc.total_cost|fr_money(0) }}</dd></div>
+                <div><dt>Coût par {{ crop.unit_label[:-1] if crop.unit_label.endswith('s') else crop.unit_label }}</dt><dd data-out="cost_per_plant">{{ calc.cost_per_plant|fr_money }}</dd></div>
+                <div><dt>Heures / 1 000 m²</dt><dd><span data-out="hours_per_1000m2">{{ calc.hours_per_1000m2|fr_num(0) }}</span>{% if bench and bench.hours_per_1000m2 is not none %}<small>réseau : {{ bench.hours_per_1000m2|fr_num(0) }}</small>{% endif %}</dd></div>
+                <div><dt>Rendement</dt><dd><span data-out="yield_per_plant_g">{{ calc.yield_per_plant_g|fr_num(0) }}</span> g/plant<small><span data-out="yield_per_m2">{{ calc.yield_per_m2|fr_num(2) }}</span> kg/m²</small></dd></div>
+                <div><dt>Cueillette</dt><dd><span data-out="harvest_kg_per_hour">{{ calc.harvest_kg_per_hour|fr_num(1) }}</span> kg/h{% if bench and bench.harvest_kg_per_hour is not none %}<small>réseau : {{ bench.harvest_kg_per_hour|fr_num(1) }}</small>{% endif %}</dd></div>
+                <div><dt>Rémunération du travail</dt><dd><span data-out="hourly_return">{{ calc.hourly_return|fr_money }}</span>/h{% if bench and bench.hourly_return is not none %}<small>réseau : {{ bench.hourly_return|fr_money }}</small>{% endif %}</dd></div>
+            </dl>
+            {% if bench and bench.cost_per_kg is not none %}
+            <div class="todo">{{ icon('network', 'icon-sm') }} Médiane du réseau {{ year }} : <strong>{{ bench.cost_per_kg|fr_money }}/kg</strong> ({{ bench.n }} fermes).</div>
+            {% endif %}
+            <div class="todo" data-show="missing" {% if not calc.missing %}hidden{% endif %}>
+                <strong>Pour un calcul complet :</strong> <span data-out="missing">{{ calc.missing|join(', ') }}</span>.
+            </div>
+        </div>
+        <div class="result-foot">
+            <button type="submit" form="cr-form" class="btn btn-primary btn-block">{{ icon('check') }} Enregistrer</button>
+        </div>
+    </aside>
 </div>
+
+<div class="cr-mobilebar" aria-hidden="true">
+    <div><div class="lbl">Coût de revient</div><div class="val"><span data-out="cost_per_kg">{{ calc.cost_per_kg|fr_num(2) }}</span> €/kg</div></div>
+    <button type="submit" form="cr-form" class="btn btn-primary" tabindex="-1">Enregistrer</button>
+</div>
+
+{# ------------------------------------------------------------------ history #}
+<div class="cr-below">
+    <section class="card">
+        <div class="card-header">
+            <h2>Vos campagnes</h2>
+            <span class="card-badge">{{ entries|length }} campagne{{ 's' if entries|length > 1 else '' }}</span>
+        </div>
+        {% if entries %}
+        {% if entries|length > 1 %}
+        <div class="history-chart"><canvas id="history-chart" aria-label="Évolution du coût de revient par kilo"></canvas></div>
+        {% endif %}
+        <div class="table-wrapper" style="margin-top:16px">
+            <table>
+                <thead><tr>
+                    <th>Campagne</th><th class="num">Plants</th><th class="num">Surface</th><th class="num">Récolte</th>
+                    <th class="num">Coût / kg</th><th class="num">Prix / kg</th><th class="num">Marge / kg</th>
+                    <th class="num">Heures</th><th class="num">h / 1 000 m²</th><th class="num">€ / heure</th>
+                </tr></thead>
+                <tbody>
+                {% for e in entries|reverse %}
+                <tr>
+                    <td><a class="year-link" href="{{ url_for('production_cost.view', crop=crop.slug, annee=e.year) }}">{{ e.year }}</a>{% if e.variety %} <span class="muted">· {{ e.variety }}</span>{% endif %}</td>
+                    <td class="num">{{ e.nb_units|fr_num }}</td>
+                    <td class="num">{{ e.surface_m2|fr_num }} m²</td>
+                    <td class="num">{{ e.yield_kg|fr_num }} kg</td>
+                    <td class="num"><strong>{{ e.calc.cost_per_kg|fr_money }}</strong>{% if not e.calc.labour_included and e.calc.cost_per_kg is not none %}<sup title="hors main-d'œuvre">*</sup>{% endif %}</td>
+                    <td class="num">{{ e.sale_price|fr_money }}</td>
+                    <td class="num {% if e.calc.margin_per_kg is not none %}{{ 'good' if e.calc.margin_per_kg >= 0 else 'bad' }}{% endif %}">{{ e.calc.margin_per_kg|fr_money }}</td>
+                    <td class="num">{{ e.calc.hours_total|fr_num }}</td>
+                    <td class="num">{{ e.calc.hours_per_1000m2|fr_num }}</td>
+                    <td class="num">{{ e.calc.hourly_return|fr_money }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="form-hint">* hors main-d'œuvre (coût horaire non renseigné). « € / heure » : ce que rapporte une heure de travail une fois intrants et structure payés.</p>
+        {% else %}
+        <div class="empty-state">
+            <h3>Aucune campagne enregistrée</h3>
+            <p>Remplissez le formulaire ci-dessus pour votre dernière saison : le coût de revient se calcule au fur et à mesure de la saisie. Vous pourrez ensuite comparer vos campagnes d'une année sur l'autre.</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>Repères du réseau</h2>
+            <span class="card-badge">médianes anonymes</span>
+        </div>
+        {% if benchmark %}
+        <div class="table-wrapper">
+            <table>
+                <thead><tr>
+                    <th>Campagne</th><th class="num">Fermes</th><th class="num">Coût / kg</th><th class="num">Vous</th>
+                    <th class="num">h / 1 000 m²</th><th class="num">Vous</th><th class="num">kg / m²</th><th class="num">Cueillette kg/h</th><th class="num">€ / heure</th>
+                </tr></thead>
+                <tbody>
+                {% for y, b in benchmark|dictsort(reverse=true) %}
+                <tr>
+                    <td><strong>{{ y }}</strong></td>
+                    <td class="num">{{ b.n }}</td>
+                    <td class="num">{{ b.cost_per_kg|fr_money }}</td>
+                    <td class="num muted">{{ mine[y].cost_per_kg|fr_money if y in mine else '—' }}</td>
+                    <td class="num">{{ b.hours_per_1000m2|fr_num }}</td>
+                    <td class="num muted">{{ mine[y].hours_per_1000m2|fr_num if y in mine else '—' }}</td>
+                    <td class="num">{{ b.yield_per_m2|fr_num(2) }}</td>
+                    <td class="num">{{ b.harvest_kg_per_hour|fr_num(1) }}</td>
+                    <td class="num">{{ b.hourly_return|fr_money }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <h3>Pas encore assez de données</h3>
+            <p>Les repères apparaissent dès que {{ min_peers }} fermes ont saisi une même campagne. Les valeurs sont des médianes : aucune ferme n'est identifiable.</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<script type="application/json" id="cr-config">{{ crop.to_js()|tojson }}</script>
+<script type="application/json" id="cr-previous">{{ ({'nb_units': previous.nb_units, 'surface_m2': previous.surface_m2, 'variety': previous.variety, 'system': previous.system, 'sale_price': previous.sale_price, 'hourly_cost': previous.hourly_cost, 'tasks': previous.tasks, 'charges': previous.charges} if previous and not current else none)|tojson }}</script>
+<script type="application/json" id="cr-history-data">{{ history_series|tojson }}</script>
 {% endblock %}
 
 {% block scripts %}
-<script>
-// Live total + per-1000m² calculation as the user types
-(function () {
-    const taskInputs = document.querySelectorAll('.pc-task');
-    const surfaceInput = document.querySelector('.pc-surface');
-    const totalDisplay = document.getElementById('pc-total');
-    const per1000Display = document.getElementById('pc-per1000');
-
-    function recompute() {
-        let total = 0;
-        taskInputs.forEach(i => total += parseFloat(i.value) || 0);
-        totalDisplay.value = total ? total.toFixed(2) : 0;
-        const surf = parseFloat(surfaceInput.value);
-        if (surf && surf > 0 && total > 0) {
-            per1000Display.value = (total / surf * 1000).toFixed(2);
-        } else {
-            per1000Display.value = '—';
-        }
-    }
-    taskInputs.forEach(i => i.addEventListener('input', recompute));
-    if (surfaceInput) surfaceInput.addEventListener('input', recompute);
-})();
-</script>
+<script src="{{ url_for('static', filename='js/cout-revient.js') }}?v={{ static_version|default('1') }}"></script>
 {% endblock %}

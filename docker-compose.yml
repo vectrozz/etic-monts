@@ -17,10 +17,12 @@ services:
   app-flask:
     build:
       context: ./
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
     env_file: .env
     environment:
       FLASK_ENV: development
+      # Dev runs every module (marketplace included); prod only what .env enables.
+      FEATURES: ${FEATURES:-all}
       POSTGRES_HOST: postgres-db
       POSTGRES_PORT: "5432"
     networks:

@@ -97,6 +97,9 @@ def register():
     if not name or not password:
         flash("Identifiant et mot de passe requis.", "danger")
         return redirect(url_for("main.register"))
+    if len(name) > 20:
+        flash("Identifiant trop long (20 caractères maximum).", "warning")
+        return redirect(url_for("main.register"))
     if password != confirm:
         flash("Les mots de passe ne correspondent pas", "warning")
         return redirect(url_for("main.register"))
@@ -110,19 +113,20 @@ def register():
         return redirect(url_for("main.register"))
 
     hashed = bcrypt.generate_password_hash(password).decode("utf-8")
-    # First-run: if no admin exists yet, the first registered user becomes admin.
-    existing_admin = execute(
-        "SELECT id FROM fermes WHERE role = 'admin' LIMIT 1", fetch="one",
-    )
-    role = "producteur" if existing_admin else "admin"
+    # Fresh install only: the very first account becomes admin. On a migrated
+    # database (farms already present, no admin yet) use BOOTSTRAP_ADMIN_USER —
+    # never hand admin rights to whoever registers next.
+    any_user = execute("SELECT 1 FROM fermes LIMIT 1", fetch="one")
+    role = "producteur" if any_user else "admin"
     try:
         execute(
             "INSERT INTO fermes (name, userpass, farmname, adress, integration_year, role) "
             "VALUES (%s, %s, %s, %s, %s, %s)",
             (name, hashed, farmname, adress, integration_year, role),
         )
-    except Exception as e:
-        flash(f"Erreur lors de la création du compte : {e}", "danger")
+    except Exception:
+        current_app.logger.exception("register failed for %r", name)
+        flash("Impossible de créer le compte. Vérifiez les champs et réessayez.", "danger")
         return redirect(url_for("main.register"))
 
     session.pop("register_authorized", None)

@@ -1,9 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Biodiversité — Etic'Monts{% endblock %}
+{% block title %}Biodiversité — {{ branding.name or "Etic'Monts" }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Détail Biodiversité</h1>
+    <span class="eyebrow">Biodiversité</span>
+    <h1>Détail biodiversité</h1>
     {% if ferme|length > 0 %}
     <p class="subtitle">Ferme <strong>{{ ferme[0][1] }}</strong> — {{ ferme[0][2] }}</p>
     {% endif %}
@@ -39,8 +40,7 @@
 
 {% block scripts %}
 <script>
-Chart.defaults.color = '#8b8f9a';
-Chart.defaults.borderColor = 'rgba(46,49,58,0.5)';
+const chartColors = EMBChart.palette();
 const biodivData = {{ biodiv|tojson }};
 
 if (biodivData.length > 0) {
@@ -51,12 +51,12 @@ if (biodivData.length > 0) {
             datasets: [{
                 label: 'Biodiv Score',
                 data: biodivData.map(r => parseFloat(r[13]) || 0),
-                borderColor: '#4ecdc4',
-                backgroundColor: 'rgba(78,205,196,0.15)',
+                borderColor: chartColors[0],
+                backgroundColor: chartColors[0] + '26',
                 fill: true,
                 tension: 0.3,
                 pointRadius: 5,
-                pointBackgroundColor: '#4ecdc4'
+                pointBackgroundColor: chartColors[0]
             }]
         },
         options: {

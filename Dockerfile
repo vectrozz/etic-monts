@@ -1,17 +1,30 @@
-#FROM python:3.12
-#recup img python officielle du docker hub
-FROM python
-#image  python se base sur ubuntu, on met à jour ubuntu
-RUN apt-get update 
-RUN apt-get install -y python3-pip
+# Etic'Monts — application image (Flask + Gunicorn)
+FROM python:3.12-slim
 
-COPY requirements.txt /etc/requirements.txt
-RUN pip install -r /etc/requirements.txt
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-COPY templates /etc/templates
-COPY static /etc/static
-COPY app-docker.py /etc/app-docker.py
+WORKDIR /app
 
-#RUN python3 /etc/app.py  
-ENTRYPOINT ["python3", "/etc/app-docker.py"] 
+# Dependencies first (layer caching)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Application code
+COPY app.py ./
+COPY deploy/gunicorn.conf.py deploy/gunicorn.conf.py
+COPY eticmonts/ eticmonts/
+COPY templates/ templates/
+COPY static/ static/
+COPY scripts/seed_demo.py scripts/seed_demo.py
+
+# Non-root user with the usual host UID so bind-mounted uploads stay writable.
+RUN adduser --disabled-password --no-create-home --uid 1000 appuser && \
+    mkdir -p /app/static/uploads/profile && \
+    chown -R appuser:appuser /app/static/uploads
+USER appuser
+
+EXPOSE 8000
+
+CMD ["gunicorn", "-c", "deploy/gunicorn.conf.py", "app:app"]

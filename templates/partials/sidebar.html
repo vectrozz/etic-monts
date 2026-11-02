@@ -1,12 +1,17 @@
-<nav class="sidebar" id="sidebar">
+{% from 'partials/icons.html' import icon, brand_mark %}
+{% set ep = request.endpoint or '' %}
+<nav class="sidebar" id="sidebar" aria-label="Navigation principale">
     <div class="sidebar-header">
-        <h2>{{ branding.name or "Etic'Monts" }}</h2>
-        <span class="sidebar-subtitle">{{ branding.subtitle or "Coopérative" }}</span>
+        {{ brand_mark() }}
+        <div>
+            <h2>{{ branding.name or "Etic'Monts" }}</h2>
+            <span class="sidebar-subtitle">{{ branding.subtitle or "Coopérative de producteurs" }}</span>
+        </div>
     </div>
     <div class="sidebar-user">
         <div class="user-avatar">
             {% if user_photo %}
-            <img src="{{ url_for('static', filename=user_photo) }}?v={{ static_version|default('1') }}" alt="Photo">
+            <img src="{{ url_for('static', filename=user_photo) }}?v={{ static_version|default('1') }}" alt="Photo de {{ session.username }}">
             {% else %}
             {{ session.username[0]|upper }}
             {% endif %}
@@ -19,97 +24,80 @@
 
     <ul class="sidebar-nav">
         <li class="nav-group" data-section="exploitation">
-            <button type="button" class="nav-section">Mon exploitation</button>
+            <button type="button" class="nav-section" aria-expanded="true">Mon exploitation</button>
             <ul class="nav-items">
-                <li><a href="{{ url_for('farm.dashboard') }}" class="{% if request.endpoint and request.endpoint.startswith('farm.dashboard') %}active{% endif %}">
-                    <span class="nav-icon">&#9632;</span> Tableau de bord</a></li>
+                <li><a href="{{ url_for('farm.dashboard') }}" class="{% if ep == 'farm.dashboard' %}active{% endif %}">
+                    {{ icon('dashboard') }} Tableau de bord MAEC</a></li>
+                <li><a href="{{ url_for('farm.fiche', idferme=session.user_id) }}" class="{% if ep == 'farm.fiche' and request.view_args and request.view_args.idferme == session.user_id %}active{% endif %}">
+                    {{ icon('doc') }} Fiche ferme</a></li>
             </ul>
         </li>
 
-        <li class="nav-group" data-section="production_cost">
-            <button type="button" class="nav-section">Coût de production</button>
+        {% if feature('cout_revient') %}
+        <li class="nav-group" data-section="cout_revient">
+            <button type="button" class="nav-section" aria-expanded="true">Coût de revient</button>
             <ul class="nav-items">
-                {% if production_crops %}
                 {% for c in production_crops %}
                 <li><a href="{{ url_for('production_cost.view', crop=c.slug) }}"
-                       class="{% if request.endpoint and request.endpoint.startswith('production_cost.') and request.view_args and request.view_args.crop == c.slug %}active{% endif %}">
-                    <span class="nav-icon">{{ c.emoji or '🌿' }}</span> {{ c.label }}</a></li>
+                       class="{% if ep == 'production_cost.view' and request.view_args and request.view_args.crop == c.slug %}active{% endif %}">
+                    <span class="nav-emoji" aria-hidden="true">{{ c.emoji }}</span> {{ c.label }}</a></li>
                 {% endfor %}
-                {% else %}
-                <li class="nav-empty"><em>Aucune culture définie. Créez un produit dans Marketplace → Produits.</em></li>
+                {% if is_admin() %}
+                <li><a href="{{ url_for('production_cost.network', crop=production_crops[0].slug) }}" class="{% if ep == 'production_cost.network' %}active{% endif %}">
+                    {{ icon('chart') }} Vue réseau</a></li>
                 {% endif %}
             </ul>
         </li>
+        {% endif %}
 
+        {% if feature('marketplace') %}
         <li class="nav-group" data-section="marketplace">
-            <button type="button" class="nav-section">Marketplace</button>
+            <button type="button" class="nav-section" aria-expanded="true">Marketplace</button>
             <ul class="nav-items">
-                <li><a href="{{ url_for('products.index') }}" class="{% if request.endpoint and request.endpoint.startswith('products.') %}active{% endif %}">
-                    <span class="nav-icon">&#10047;</span> Produits</a></li>
-                <li><a href="{{ url_for('stocks.index') }}" class="{% if request.endpoint and request.endpoint.startswith('stocks.') %}active{% endif %}">
-                    <span class="nav-icon">&#9636;</span> Stocks</a></li>
-                <li><a href="{{ url_for('clients.index') }}" class="{% if request.endpoint and request.endpoint.startswith('clients.') %}active{% endif %}">
-                    <span class="nav-icon">&#9787;</span> Clients</a></li>
-                <li><a href="{{ url_for('orders.index') }}" class="{% if request.endpoint and request.endpoint.startswith('orders.') %}active{% endif %}">
-                    <span class="nav-icon">&#10004;</span> Commandes</a></li>
+                <li><a href="{{ url_for('products.index') }}" class="{% if ep.startswith('products.') %}active{% endif %}">{{ icon('box') }} Produits</a></li>
+                <li><a href="{{ url_for('stocks.index') }}" class="{% if ep.startswith('stocks.') %}active{% endif %}">{{ icon('layers') }} Stocks</a></li>
+                <li><a href="{{ url_for('clients.index') }}" class="{% if ep.startswith('clients.') %}active{% endif %}">{{ icon('user') }} Clients</a></li>
+                <li><a href="{{ url_for('orders.index') }}" class="{% if ep.startswith('orders.') %}active{% endif %}">{{ icon('receipt') }} Commandes</a></li>
             </ul>
         </li>
+        {% endif %}
 
         <li class="nav-group" data-section="settings">
-            <button type="button" class="nav-section">Réglages</button>
+            <button type="button" class="nav-section" aria-expanded="true">Réglages</button>
             <ul class="nav-items">
-                <li><a href="{{ url_for('settings.exploitation') }}" class="{% if request.endpoint == 'settings.exploitation' %}active{% endif %}">
-                    <span class="nav-icon">&#9881;</span> Mon exploitation</a></li>
-                {% if is_admin and is_admin() %}
-                <li><a href="{{ url_for('settings.index') }}" class="{% if request.endpoint == 'settings.index' or (request.endpoint and request.endpoint.startswith('tournees.')) %}active{% endif %}">
-                    <span class="nav-icon">&#10148;</span> Livraison</a></li>
+                <li><a href="{{ url_for('settings.exploitation') }}" class="{% if ep == 'settings.exploitation' %}active{% endif %}">{{ icon('farm') }} Mon profil</a></li>
+                <li><a href="{{ url_for('catalog.index') }}" class="{% if ep.startswith('catalog.') %}active{% endif %}">{{ icon('book') }} Catalogue partagé</a></li>
+                {% if is_admin() %}
+                <li><a href="{{ url_for('settings.index') }}" class="{% if ep == 'settings.index' or ep.startswith('tournees.') %}active{% endif %}">
+                    {% if feature('marketplace') %}{{ icon('truck') }} Livraison &amp; identité{% else %}{{ icon('sliders') }} Identité du réseau{% endif %}</a></li>
                 {% endif %}
-                <li><a href="{{ url_for('catalog.index') }}" class="{% if request.endpoint and request.endpoint.startswith('catalog.') %}active{% endif %}">
-                    <span class="nav-icon">&#9776;</span> Catalogue partagé</a></li>
             </ul>
         </li>
 
-        {% if is_admin and is_admin() %}
+        {% if is_admin() %}
         <li class="nav-group" data-section="admin">
-            <button type="button" class="nav-section">Admin</button>
+            <button type="button" class="nav-section" aria-expanded="true">Administration</button>
             <ul class="nav-items">
-                <li><a href="{{ url_for('admin.dashboard') }}" class="{% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
-                    <span class="nav-icon">&#9733;</span> Synthèse réseau</a></li>
-                <li><a href="{{ url_for('admin.coefbiodiv') }}" class="{% if request.endpoint == 'admin.coefbiodiv' %}active{% endif %}">
-                    <span class="nav-icon">&#9874;</span> Coefficients MAEC</a></li>
-                <li><a href="{{ url_for('admin.users') }}" class="{% if request.endpoint == 'admin.users' %}active{% endif %}">
-                    <span class="nav-icon">&#128100;</span> Utilisateurs</a></li>
+                <li><a href="{{ url_for('admin.dashboard') }}" class="{% if ep == 'admin.dashboard' %}active{% endif %}">{{ icon('network') }} Synthèse réseau</a></li>
+                <li><a href="{{ url_for('admin.coefbiodiv') }}" class="{% if ep == 'admin.coefbiodiv' %}active{% endif %}">{{ icon('leaf') }} Coefficients MAEC</a></li>
+                <li><a href="{{ url_for('admin.users') }}" class="{% if ep == 'admin.users' %}active{% endif %}">{{ icon('users') }} Utilisateurs</a></li>
             </ul>
         </li>
         {% endif %}
     </ul>
 
     <div class="sidebar-footer">
-        {% if not (is_admin and is_admin()) %}
-        <a href="{{ url_for('main.logout') }}?next=admin" class="sidebar-admin-hint" title="Se déconnecter pour se reconnecter avec un compte administrateur">
-            Accéder en admin →
-        </a>
+        {% if not is_admin() %}
+        <a href="{{ url_for('main.logout') }}?next=admin" class="sidebar-admin-hint" title="Se déconnecter pour se reconnecter avec un compte administrateur">Accéder en admin →</a>
         {% endif %}
-        <a href="{{ url_for('main.logout') }}" class="btn btn-outline-danger btn-sm">Se déconnecter</a>
+        <div class="sidebar-footer-row">
+            <a href="{{ url_for('main.logout') }}" class="sidebar-logout">{{ icon('logout', 'icon-sm') }} Se déconnecter</a>
+            <label class="sr-only" for="theme-select">Thème</label>
+            <select id="theme-select" class="theme-select" aria-label="Thème d'affichage">
+                <option value="auto">Auto</option>
+                <option value="light">Clair</option>
+                <option value="dark">Sombre</option>
+            </select>
+        </div>
     </div>
 </nav>
-
-<script>
-// Collapse / expand sidebar groups, with state persisted in localStorage.
-(function () {
-    const KEY = 'etcm_sidebar_collapsed';
-    let state;
-    try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { state = {}; }
-    document.querySelectorAll('.nav-group').forEach(group => {
-        const id = group.dataset.section;
-        if (state[id]) group.classList.add('collapsed');
-        const header = group.querySelector('.nav-section');
-        if (!header) return;
-        header.addEventListener('click', () => {
-            group.classList.toggle('collapsed');
-            state[id] = group.classList.contains('collapsed');
-            try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
-        });
-    });
-})();
-</script>

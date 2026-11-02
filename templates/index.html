@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Accueil — {{ branding.name or "Etic'Monts" }}{% endblock %}
+{% block title %}{{ branding.name or "Etic'Monts" }} — espace producteurs{% endblock %}
 
 {% block auth_content %}
 <div class="auth-card">
     <div class="auth-brand">
-        <h1>{{ branding.name or "Etic'Monts" }}</h1>
-        <p>{{ branding.subtitle or "Coopérative de producteurs" }}</p>
+        <h1>Bienvenue</h1>
+        <p>L'espace des producteurs {{ branding.name or "Etic'Monts" }} : vos données MAEC, la biodiversité de vos parcelles et le coût de revient de vos cultures.</p>
     </div>
     <div class="auth-actions">
-        <a href="{{ url_for('main.login') }}" class="btn btn-primary">Se connecter</a>
-        <a href="{{ url_for('main.register') }}" class="btn btn-outline">Créer un compte</a>
+        <a href="{{ url_for('main.login') }}" class="btn btn-primary btn-lg">Se connecter</a>
+        <a href="{{ url_for('main.register') }}" class="btn btn-secondary btn-lg">Créer un compte</a>
     </div>
-    <footer class="auth-footer">{{ branding.name or "Etic'Monts" }} &mdash; v3.0</footer>
+    <p class="auth-footer">L'inscription nécessite le code fourni par le réseau.</p>
 </div>
 {% endblock %}
