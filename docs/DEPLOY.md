@@ -154,6 +154,22 @@ sed -i 's/^FEATURES=.*/FEATURES=cout_revient,whatsapp/' /root/EMB/etic-monts/.en
 Puis **WhatsApp → Téléphone relais** sur le site et
 [android/README.md](../android/README.md) pour installer l'app.
 
+## Mettre à jour le vhost nginx
+
+Le vhost versionné est `deploy/nginx/emb.boblabs.eu.conf` (limites anti-abus
+sur `/api/relay/` et `/login`, zones préfixées `emb_` pour ne pas gêner les
+autres sites). Installation, avec sauvegarde de l'actuel :
+
+```bash
+cp /etc/nginx/sites-available/emb.conf /root/emb.conf.bak-$(date +%Y%m%d)
+cp /root/EMB/etic-monts/deploy/nginx/emb.boblabs.eu.conf /etc/nginx/sites-available/emb.conf
+nginx -t && systemctl reload nginx
+```
+
+`nginx -t` valide toute la configuration (tous les sites) avant le
+rechargement ; s'il échoue, rien n'est rechargé : remettre la sauvegarde.
+Le rechargement est sans coupure pour les autres sites.
+
 ## 4. Migrations de base (Alembic)
 
 - Nouvelle évolution de schéma : `alembic revision -m "…"` puis écrire le SQL

@@ -1222,6 +1222,7 @@ a.section-tab { text-decoration: none; }
 .wa-pair { border-color: var(--accent); box-shadow: var(--ring); }
 .wa-pair .btn-lg { margin-bottom: 12px; }
 .wa-token { word-break: break-all; }
+.wa-actions { display: flex; gap: 6px; align-items: flex-start; }
 @media (max-width: 860px) {
     .wa-sender-row { grid-template-columns: minmax(0, 1fr); }
     .wa-map-form { flex-wrap: wrap; }

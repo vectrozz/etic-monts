@@ -8,7 +8,7 @@ from flask import (
     Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for,
 )
 
-from .. import relay
+from .. import relay, relay_auth
 from ..chat_parser import parse_list
 from ..security import admin_required, get_session_context
 
@@ -19,40 +19,68 @@ PAIR_SCHEME = "embrelais"
 
 
 # ---------------------------------------------------------------------------
-# API (Bearer token, JSON in / JSON out, no cookies)
+# API — JSON only, no cookies. Pairing with a one-time code, then every
+# request signed by the phone's hardware key (see relay_auth.py).
 # ---------------------------------------------------------------------------
 
-def _device_or_401():
-    auth = request.headers.get("Authorization", "")
-    token = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
-    device = relay.authenticate(token, request.headers.get("X-App-Version"))
-    if device is None:
-        abort(_json_error(401, "invalid or revoked token"))
-    return device
-
-
-def _json_error(status: int, message: str):
-    resp = jsonify(error=message)
+def _json_error(status: int, code: str, message: str, **extra):
+    resp = jsonify(error=message, code=code, **extra)
     resp.status_code = status
+    if "retry_after" in extra:
+        resp.headers["Retry-After"] = str(extra["retry_after"])
     return resp
+
+
+@api.errorhandler(relay_auth.RelayAuthError)
+def _auth_error(e: relay_auth.RelayAuthError):
+    return _json_error(e.status, e.code, e.message, **e.extra)
+
+
+@api.before_request
+def _cheap_limits():
+    """Reject oversized or unbounded bodies before reading them (nginx caps them too)."""
+    if request.method == "POST":
+        if request.content_length is None:
+            return _json_error(411, "length_required", "Content-Length requis")
+        if request.content_length > relay_auth.MAX_BODY_BYTES:
+            return _json_error(413, "too_large", "corps de requête trop gros")
+
+
+def _signed_device() -> dict:
+    return relay_auth.verify_request(request.method, request.path, request.headers,
+                                     request.get_data(cache=True))
+
+
+@api.post("/register")
+def register():
+    auth = request.headers.get("Authorization", "")
+    code = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return _json_error(400, "bad_json", "objet JSON attendu")
+    device = relay_auth.register(code, payload.get("public_key"), payload.get("key_hardware"),
+                                 request.headers.get("X-App-Version"))
+    return jsonify(ok=True, device_id=device["id"], device=device["name"])
 
 
 @api.get("/ping")
 def ping():
-    device = _device_or_401()
+    device = _signed_device()
     return jsonify(ok=True, device=device["name"])
 
 
 @api.post("/messages")
 def receive_messages():
-    device = _device_or_401()
+    device = _signed_device()
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
-        return _json_error(400, "JSON object expected")
+        return _json_error(400, "bad_json", "objet JSON attendu")
     try:
-        result = relay.ingest(device["id"], payload.get("messages"))
+        messages = payload.get("messages")
+        relay_auth.check_daily_cap(device["id"], len(messages) if isinstance(messages, list) else 0)
+        result = relay.ingest(device["id"], messages)
     except relay.InvalidPayload as e:
-        return _json_error(400, str(e))
+        return _json_error(400, "bad_payload", str(e))
     return jsonify(ok=True, **result)
 
 
@@ -132,20 +160,35 @@ def devices():
     return _render("whatsapp/devices.html", devices=relay.list_devices(), created=None)
 
 
+def _pairing_page(device_id: int, name: str, code: str, group: str):
+    server = request.url_root.rstrip("/")
+    params = {"server": server, "code": code, "name": name}
+    if group:
+        params["groups"] = group
+    link = f"{PAIR_SCHEME}://pair?{urlencode(params)}"
+    return _render("whatsapp/devices.html", devices=relay.list_devices(),
+                   created={"id": device_id, "name": name, "code": code, "server": server,
+                            "group": group, "link": link, "ttl": relay_auth.PAIRING_TTL_HOURS})
+
+
 @bp.post("/telephones")
 @admin_required
 def create_device():
     name = (request.form.get("name") or "").strip() or "Téléphone"
     group = (request.form.get("group") or "").strip()
-    device_id, token = relay.create_device(name, session.get("user_id"))
-    server = request.url_root.rstrip("/")
-    params = {"server": server, "token": token, "name": name}
-    if group:
-        params["groups"] = group
-    pair_link = f"{PAIR_SCHEME}://pair?{urlencode(params)}"
-    return _render("whatsapp/devices.html", devices=relay.list_devices(),
-                   created={"id": device_id, "name": name, "token": token, "server": server,
-                            "group": group, "link": pair_link})
+    device_id, code = relay.create_device(name, session.get("user_id"))
+    return _pairing_page(device_id, name, code, group)
+
+
+@bp.post("/telephones/<int:did>/lien")
+@admin_required
+def renew_pairing(did):
+    """New one-time code (app reinstalled, phone replaced): the previous key stops working."""
+    code = relay.new_pairing_code(did)
+    if code is None:
+        abort(404)
+    name = next((d["name"] for d in relay.list_devices() if d["id"] == did), "Téléphone")
+    return _pairing_page(did, name, code, (request.form.get("group") or "").strip())
 
 
 @bp.post("/telephones/<int:did>/revoquer")

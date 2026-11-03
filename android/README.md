@@ -14,7 +14,8 @@ pour que les listes de chaque ferme arrivent toutes seules dans
 - Seuls les messages des **groupes listés** dans l'application quittent le
   téléphone. Les autres notifications sont ignorées et jamais enregistrées.
 - Les messages sont mis en file sur le téléphone puis envoyés en HTTPS au
-  serveur (`POST /api/relay/messages`, jeton par téléphone). Hors connexion,
+  serveur (`POST /api/relay/messages`, signés par une clé matérielle propre au
+  téléphone — voir *Sécurité*). Hors connexion,
   ils partent automatiquement au retour du réseau.
 
 ### Limites (inhérentes aux notifications)
@@ -31,12 +32,13 @@ pour que les listes de chaque ferme arrivent toutes seules dans
 1. Sur le site (compte admin) : **WhatsApp → Téléphone relais → Nouveau
    téléphone**, avec le nom exact du groupe.
 2. Installer l'APK sur le téléphone :
-   - par câble : `adb install android/dist/emb-relais-1.0.0.apk`
+   - par câble : `adb install android/dist/emb-relais-1.1.0.apk`
    - ou copier le fichier sur le téléphone et l'ouvrir (autoriser
      « Installer des applis inconnues » pour le gestionnaire de fichiers).
 3. Sur le téléphone, ouvrir la page du site et toucher **Associer
-   l'application** : l'app s'ouvre, enregistre le serveur, le jeton et le
-   groupe, et teste la connexion.
+   l'application** (dans les 24 h) : l'app s'ouvre, crée sa clé de sécurité,
+   s'enregistre auprès du serveur avec le code à usage unique et retient le
+   groupe (« Associée à … — clé : puce sécurisée » confirme le tout).
 4. Dans l'app : **Autoriser l'accès aux notifications** (activer « EMB
    Relais »), puis **Ignorer l'optimisation de batterie** (sinon certains
    téléphones — Xiaomi, Samsung, Huawei — coupent l'app en arrière-plan).
@@ -46,6 +48,39 @@ pour que les listes de chaque ferme arrivent toutes seules dans
 
 Si « non suivie » s'affiche pour le groupe des producteurs : corriger le nom
 dans **Configuration** (un groupe par ligne, tel qu'affiché par WhatsApp).
+
+## Sécurité
+
+**Seul le téléphone associé peut envoyer des messages.**
+
+1. **Association** : la page *Téléphone relais* donne un code **à usage
+   unique, valable 24 h**. L'app crée alors une paire de clés EC P-256 **dans
+   la puce de sécurité du téléphone** (Android Keystore : StrongBox ou TEE) et
+   n'envoie au serveur que la **clé publique**. Le code est aussitôt brûlé.
+2. **Chaque requête est signée** par cette clé (ECDSA-SHA256 sur méthode,
+   chemin, horodatage, nonce et empreinte SHA-256 du corps). Le serveur
+   refuse : signature absente ou fausse, corps modifié, horodatage décalé de
+   plus de 5 min, nonce déjà vu (rejeu), téléphone révoqué.
+3. La clé privée **ne sort jamais de la puce** — même l'app ne peut pas la
+   lire. Copier les données de l'app, intercepter une requête ou voler le
+   code après usage ne permet pas d'envoyer des messages.
+4. Le serveur ne stocke que des **clés publiques** et l'empreinte des codes :
+   une fuite de la base ne permet pas de se faire passer pour le téléphone.
+5. Réinstallation / nouveau téléphone : **Nouveau lien** sur le site (l'ancienne
+   clé cesse immédiatement de fonctionner). Perte / vol : **Révoquer**.
+
+**Anti-abus** (personne ne peut saturer le serveur par cette porte) :
+
+| Couche | Limite |
+|---|---|
+| nginx (par IP) | 30 req/min sur `/api/relay/` (rafale 20), 10 connexions, corps ≤ 512 Ko, 10 s pour l'envoyer → `429`/`413` avant Flask |
+| application, avant toute requête SQL | en-têtes de signature mal formés, horodatage hors délai, corps > 512 Ko ou sans `Content-Length` |
+| par téléphone | `RELAY_RATE_PER_MIN` (30) requêtes/min, `RELAY_DAILY_CAP` (3 000) messages/24 h, ≤ 200 messages par envoi |
+
+Limites connues : le niveau de la clé (StrongBox/TEE) est déclaré par le
+téléphone, pas prouvé par attestation ; sur un téléphone *rooté*, un logiciel
+malveillant pourrait faire signer des requêtes par l'app (sans pouvoir
+extraire la clé). Révoquer le téléphone coupe tout accès.
 
 ## Développement
 
@@ -70,5 +105,7 @@ cd android && ./gradlew :app:testDebugUnitTest :app:assembleDebug
 | `WhatsAppListener.kt` | `NotificationListenerService` : filtre, met en file |
 | `Store.kt` | file SQLite locale (dédoublonnage par la même clé que le serveur) |
 | `UploadWorker.kt` | envoi par WorkManager, reprise automatique |
-| `Api.kt` | appels HTTPS au serveur |
+| `Api.kt` | appels HTTPS au serveur (association, requêtes signées, correction d'horloge) |
+| `DeviceKey.kt` | clé EC P-256 dans l'Android Keystore (StrongBox/TEE), signature |
+| `RequestSigner.kt` | chaîne signée — identique au serveur (`eticmonts/relay_auth.py`), testée |
 | `MainActivity.kt` | état, association par lien `embrelais://pair?…`, configuration |

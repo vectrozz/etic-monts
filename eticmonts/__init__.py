@@ -54,6 +54,8 @@ def create_app() -> Flask:
     # Static files are served by gunicorn behind the host nginx; URLs of CSS/JS
     # carry ?v=<fingerprint>, uploads carry ?v=<mtime>.
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = timedelta(days=30)
+    # Hard cap on any request body (profile photos ≤ 5 MB; nginx allows 10 MB).
+    app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024
     if cfg.is_production:
         # HTTPS in prod; set SESSION_COOKIE_SECURE=0 to test a prod build over plain HTTP.
         app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "1") != "0"

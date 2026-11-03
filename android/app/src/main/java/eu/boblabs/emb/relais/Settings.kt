@@ -10,9 +10,20 @@ class Settings(context: Context) {
         get() = prefs.getString("server", "").orEmpty()
         set(v) = prefs.edit().putString("server", v.trim().trimEnd('/')).apply()
 
-    var token: String
-        get() = prefs.getString("token", "").orEmpty()
-        set(v) = prefs.edit().putString("token", v.trim()).apply()
+    /** Server-side id of this phone, set by a successful pairing (0 = not paired). */
+    var deviceId: Int
+        get() = prefs.getInt("device_id", 0)
+        set(v) = prefs.edit().putInt("device_id", v).apply()
+
+    /** strongbox | tee | software — where the device key lives. */
+    var keyHardware: String
+        get() = prefs.getString("key_hardware", "").orEmpty()
+        set(v) = prefs.edit().putString("key_hardware", v).apply()
+
+    /** Correction applied to the phone clock (learnt from the server when it is off). */
+    var clockOffsetMs: Long
+        get() = prefs.getLong("clock_offset_ms", 0L)
+        set(v) = prefs.edit().putLong("clock_offset_ms", v).apply()
 
     /** One WhatsApp group name per line. */
     var groupsText: String
@@ -38,5 +49,5 @@ class Settings(context: Context) {
         get() = prefs.getString("last_seen_chat", null)
         set(v) = prefs.edit().putString("last_seen_chat", v).apply()
 
-    val isPaired: Boolean get() = server.startsWith("http") && token.isNotEmpty()
+    val isPaired: Boolean get() = server.startsWith("http") && deviceId > 0
 }

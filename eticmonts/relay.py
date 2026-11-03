@@ -1,8 +1,9 @@
 """WhatsApp relay: messages forwarded by the « EMB Relais » Android app.
 
 The app runs on a phone that is a member of the farms' WhatsApp group. It
-reads the notifications of that group only and POSTs them here with a device
-token. Nothing talks to WhatsApp itself.
+reads the notifications of that group only and POSTs them here, signed with
+a key held in the phone's secure hardware (see relay_auth.py). Nothing talks
+to WhatsApp itself.
 """
 from __future__ import annotations
 
@@ -11,6 +12,7 @@ import secrets
 from datetime import datetime, timezone
 
 from .db import cursor, execute
+from .relay_auth import PAIRING_TTL_HOURS, hash_code
 
 MAX_BATCH = 200
 MAX_TEXT = 4000
@@ -21,40 +23,43 @@ MAX_NAME = 160
 # Devices (relay phones)
 # ---------------------------------------------------------------------------
 
-def hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+def _new_code() -> str:
+    return "embr_" + secrets.token_urlsafe(32)
 
 
 def create_device(name: str, created_by: int | None) -> tuple[int, str]:
-    """Return (device id, clear token). Only the hash is stored."""
-    token = "embr_" + secrets.token_urlsafe(32)
+    """Return (device id, one-time pairing code valid 24 h). Only its hash is stored."""
+    code = _new_code()
     row = execute(
-        "INSERT INTO relay_devices (name, token_hash, created_by) VALUES (%s, %s, %s) RETURNING id",
-        (name.strip()[:80] or "Téléphone", hash_token(token), created_by), fetch="one",
+        "INSERT INTO relay_devices (name, token_hash, created_by, pairing_expires_at) "
+        f"VALUES (%s, %s, %s, now() + interval '{PAIRING_TTL_HOURS} hours') RETURNING id",
+        (name.strip()[:80] or "Téléphone", hash_code(code), created_by), fetch="one",
     )
-    return row[0], token
+    return row[0], code
 
 
-def authenticate(token: str, app_version: str | None = None) -> dict | None:
-    if not token:
-        return None
+def new_pairing_code(device_id: int) -> str | None:
+    """New one-time code for an existing phone (reinstall, new phone); the old key stops working."""
+    code = _new_code()
     row = execute(
-        "UPDATE relay_devices SET last_seen_at = now(), "
-        "last_app_version = COALESCE(%s, last_app_version) "
-        "WHERE token_hash = %s AND revoked_at IS NULL RETURNING id, name",
-        ((app_version or None) and app_version[:40], hash_token(token)), fetch="one", dict_rows=True,
+        "UPDATE relay_devices SET token_hash = %s, public_key = NULL, key_hardware = NULL, "
+        f"registered_at = NULL, pairing_expires_at = now() + interval '{PAIRING_TTL_HOURS} hours' "
+        "WHERE id = %s AND revoked_at IS NULL RETURNING name",
+        (hash_code(code), device_id), fetch="one",
     )
-    return dict(row) if row else None
+    return code if row else None
 
 
 def revoke_device(device_id: int) -> None:
-    execute("UPDATE relay_devices SET revoked_at = now() WHERE id = %s AND revoked_at IS NULL",
-            (device_id,))
+    execute("UPDATE relay_devices SET revoked_at = now(), public_key = NULL "
+            "WHERE id = %s AND revoked_at IS NULL", (device_id,))
 
 
 def list_devices() -> list[dict]:
     rows = execute(
         "SELECT d.id, d.name, d.created_at, d.last_seen_at, d.last_app_version, d.revoked_at, "
+        "d.public_key IS NOT NULL AS paired, d.key_hardware, d.registered_at, d.pairing_expires_at, "
+        "d.pairing_expires_at < now() AS pairing_expired, "
         "(SELECT COUNT(*) FROM chat_messages m WHERE m.device_id = d.id) AS messages "
         "FROM relay_devices d ORDER BY d.revoked_at IS NOT NULL, d.created_at DESC",
         fetch="all", dict_rows=True,

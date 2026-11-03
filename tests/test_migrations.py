@@ -12,7 +12,7 @@ from eticmonts.schema_version import expected_head
 
 
 def test_single_linear_head():
-    assert expected_head() == "0005"
+    assert expected_head() == "0006"
 
 
 @pytest.mark.db

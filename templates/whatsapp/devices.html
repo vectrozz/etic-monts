@@ -9,17 +9,18 @@
 
 {% if created %}
 <section class="card wa-pair">
-    <div class="card-header"><h2>{{ icon('link') }} Associer « {{ created.name }} »</h2><span class="role-pill role-pending">affiché une seule fois</span></div>
+    <div class="card-header"><h2>{{ icon('link') }} Associer « {{ created.name }} »</h2><span class="role-pill role-pending">usage unique · {{ created.ttl }} h</span></div>
     <ol class="wa-steps">
         <li>Sur le téléphone, connectez-vous à ce site et ouvrez cette page — ou envoyez-vous ce lien.</li>
-        <li>Touchez le bouton : l'application s'ouvre et s'associe toute seule.</li>
+        <li>Touchez le bouton : l'application crée sa clé dans la puce de sécurité du téléphone et s'associe.</li>
     </ol>
     <a class="btn btn-primary btn-lg" href="{{ created.link }}">{{ icon('phone') }} Associer l'application</a>
+    <p class="form-hint">Ce code ne sert qu'une fois et expire dans {{ created.ttl }} h. Ensuite, seul ce téléphone peut envoyer des messages : chaque envoi est signé par une clé qui ne quitte jamais le téléphone.</p>
     <details class="wa-raw">
         <summary>Saisie manuelle</summary>
         <dl class="kv">
             <div><dt>Serveur</dt><dd><code>{{ created.server }}</code></dd></div>
-            <div><dt>Jeton</dt><dd><code class="wa-token">{{ created.token }}</code></dd></div>
+            <div><dt>Code d'association</dt><dd><code class="wa-token">{{ created.code }}</code></dd></div>
             {% if created.group %}<div><dt>Groupe</dt><dd><code>{{ created.group }}</code></dd></div>{% endif %}
         </dl>
     </details>
@@ -59,17 +60,22 @@
     {% if devices %}
     <div class="table-wrapper">
         <table>
-            <thead><tr><th>Nom</th><th>Dernier contact</th><th>Version</th><th class="num">Messages</th><th>Statut</th><th></th></tr></thead>
+            <thead><tr><th>Nom</th><th>Clé</th><th>Dernier contact</th><th>Version</th><th class="num">Messages</th><th>Statut</th><th></th></tr></thead>
             <tbody>
+            {% set hw_labels = {'strongbox': 'puce StrongBox', 'tee': 'puce sécurisée (TEE)', 'software': 'logicielle'} %}
             {% for d in devices %}
             <tr>
                 <td><strong>{{ d.name }}</strong></td>
+                <td>{% if d.paired %}{{ hw_labels.get(d.key_hardware, '—') }}{% elif d.revoked_at %}—{% elif d.pairing_expired %}<span class="muted">code expiré</span>{% else %}<span class="muted">en attente · expire {{ d.pairing_expires_at|local_dt }}</span>{% endif %}</td>
                 <td class="num">{{ d.last_seen_at|local_dt if d.last_seen_at else 'jamais' }}</td>
                 <td>{{ d.last_app_version or '—' }}</td>
                 <td class="num">{{ d.messages }}</td>
-                <td>{% if d.revoked_at %}<span class="role-pill role-inactive">révoqué</span>{% else %}<span class="role-pill role-done">actif</span>{% endif %}</td>
-                <td>
+                <td>{% if d.revoked_at %}<span class="role-pill role-inactive">révoqué</span>{% elif d.paired %}<span class="role-pill role-done">associé</span>{% else %}<span class="role-pill role-pending">non associé</span>{% endif %}</td>
+                <td class="wa-actions">
                     {% if not d.revoked_at %}
+                    <form method="post" action="{{ url_for('relay.renew_pairing', did=d.id) }}">
+                        <button class="btn btn-ghost btn-sm" type="submit" title="Réinstallation ou changement de téléphone : l'ancienne clé cesse de fonctionner">Nouveau lien</button>
+                    </form>
                     <details class="danger-zone">
                         <summary class="btn btn-danger btn-sm">Révoquer</summary>
                         <form method="post" action="{{ url_for('relay.revoke_device', did=d.id) }}" class="todo">

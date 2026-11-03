@@ -91,19 +91,18 @@ class MainActivity : Activity() {
         val data: Uri? = intent?.data
         if (data != null && data.scheme == "embrelais" && data.host == "pair") {
             val s = data.getQueryParameter("server").orEmpty()
-            val t = data.getQueryParameter("token").orEmpty()
-            if (!s.startsWith("http") || t.isEmpty()) {
+            val code = data.getQueryParameter("code").orEmpty()
+            if (!s.startsWith("https://") && !(BuildConfig.DEBUG && s.startsWith("http://")) || code.isEmpty()) {
                 toast(getString(R.string.pair_invalid))
                 return
             }
             settings.server = s
-            settings.token = t
             data.getQueryParameter("groups")?.takeIf { it.isNotBlank() }?.let { settings.groupsText = it }
             data.getQueryParameter("name")?.let { settings.deviceName = it }
-            settings.lastError = null
             fillForm()
-            toast(getString(R.string.paired, s))
-            testConnection()
+            pair(code)
+            // the link carried a one-time secret: drop it from the activity
+            intent.data = null
         }
         if (BuildConfig.DEBUG) {
             intent?.getStringExtra("simulate")?.let { text ->
@@ -115,17 +114,48 @@ class MainActivity : Activity() {
 
     private fun fillForm() {
         server.setText(settings.server)
-        token.setText(settings.token)
+        token.setText("")                    // one-time pairing code: never stored
         groups.setText(settings.groupsText)
     }
 
     private fun save() {
         settings.server = server.text.toString()
-        settings.token = token.text.toString()
         settings.groupsText = groups.text.toString()
+        val code = token.text.toString().trim()
         fillForm()
-        toast(getString(R.string.saved))
+        if (code.isNotEmpty()) pair(code) else toast(getString(R.string.saved))
         refresh()
+    }
+
+    /** Create the hardware key and register its public half with the one-time code. */
+    private fun pair(code: String) {
+        toast(getString(R.string.pairing))
+        io.execute {
+            val msg = try {
+                val (publicKey, hardware) = DeviceKey.create()
+                when (val r = Api(settings).register(code, publicKey, hardware)) {
+                    is Api.Result.Ok -> {
+                        settings.deviceId = r.body.optInt("device_id")
+                        settings.keyHardware = hardware
+                        settings.clockOffsetMs = 0
+                        settings.lastError = null
+                        UploadWorker.enqueue(this)
+                        getString(R.string.paired, settings.server, hardwareLabel(hardware))
+                    }
+                    is Api.Result.Unauthorized -> { DeviceKey.delete(); getString(R.string.pair_refused) }
+                    is Api.Result.Failed -> { DeviceKey.delete(); r.message }
+                }
+            } catch (e: Exception) {
+                getString(R.string.pair_key_error, e.javaClass.simpleName)
+            }
+            main.post { toast(msg); refresh() }
+        }
+    }
+
+    private fun hardwareLabel(h: String) = when (h) {
+        "strongbox" -> getString(R.string.hw_strongbox)
+        "tee" -> getString(R.string.hw_tee)
+        else -> getString(R.string.hw_software)
     }
 
     private fun testConnection() {
@@ -133,7 +163,7 @@ class MainActivity : Activity() {
             toast(getString(R.string.not_paired))
             return
         }
-        val api = Api(settings.server, settings.token)
+        val api = Api(settings)
         io.execute {
             val msg = when (val r = api.ping()) {
                 is Api.Result.Ok -> getString(R.string.test_ok, r.body.optString("device"))
@@ -179,6 +209,7 @@ class MainActivity : Activity() {
             if (hasNotificationAccess()) "$ok ${getString(R.string.st_access_ok)}" else "$ko ${getString(R.string.st_access_ko)}",
             if (ignoresBatteryOptimizations()) "$ok ${getString(R.string.st_battery_ok)}" else "! ${getString(R.string.st_battery_ko)}",
             if (settings.isPaired) "$ok ${getString(R.string.st_server, settings.server)}" else "$ko ${getString(R.string.st_not_paired)}",
+            if (settings.isPaired) "$ok ${getString(R.string.st_key, hardwareLabel(settings.keyHardware))}" else "$ko ${getString(R.string.st_no_key)}",
             if (g.isNotEmpty()) "$ok ${getString(R.string.st_groups, g.joinToString(" · "))}" else "$ko ${getString(R.string.st_no_group)}",
             getString(R.string.st_counts, pending, sent),
         )

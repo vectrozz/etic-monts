@@ -20,7 +20,7 @@ class UploadWorker(context: Context, params: WorkerParameters) : Worker(context,
         val settings = Settings(applicationContext)
         if (!settings.isPaired) return Result.success()
         val store = Store.get(applicationContext)
-        val api = Api(settings.server, settings.token)
+        val api = Api(settings)
         while (true) {
             val batch = store.pending(100)
             if (batch.isEmpty()) break
@@ -31,7 +31,8 @@ class UploadWorker(context: Context, params: WorkerParameters) : Worker(context,
                     settings.lastError = null
                 }
                 is Api.Result.Unauthorized -> {
-                    settings.lastError = "Jeton refusé par le serveur : réassociez l'application."
+                    settings.lastError = "Refusé par le serveur (${r.code}) : ${r.message}. " +
+                        "Si le téléphone a été révoqué ou réinstallé, réassociez-le depuis le site."
                     return Result.failure()
                 }
                 is Api.Result.Failed -> {
