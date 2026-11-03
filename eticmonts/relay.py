@@ -122,7 +122,15 @@ _MSG_FROM = ("FROM chat_messages m LEFT JOIN chat_senders s ON s.sender_name = m
 
 
 def recent_by_farm(days: int = 7) -> tuple[list[dict], list[dict]]:
-    """(farms with their messages of the last `days` days, messages of unmapped senders)."""
+    """(farms with their messages of the last `days` days, messages of unmapped senders).
+
+    Several senders can belong to the same farm (GAEC associates): their
+    messages are merged into one farm entry. Each farm gets:
+      messages  all messages of the period, newest first
+      pending   the ones still to process (status 'new'), newest first
+      history   the others
+      senders   distinct people who wrote, most recent first
+    """
     rows = execute(
         f"SELECT {_MSG_COLS} {_MSG_FROM} "
         "WHERE m.posted_at >= now() - make_interval(days => %s) AND NOT COALESCE(s.ignored, FALSE) "
@@ -139,8 +147,37 @@ def recent_by_farm(days: int = 7) -> tuple[list[dict], list[dict]]:
         f = farms.setdefault(r["ferme_id"], {"ferme_id": r["ferme_id"],
                                              "name": r["farmname"] or r["login"], "messages": []})
         f["messages"].append(r)
-    ordered = sorted(farms.values(), key=lambda f: f["messages"][0]["posted_at"], reverse=True)
+    for f in farms.values():
+        f["pending"] = [m for m in f["messages"] if m["status"] == "new"]
+        f["history"] = [m for m in f["messages"] if m["status"] != "new"]
+        f["senders"] = list(dict.fromkeys(m["sender_name"] for m in f["messages"]))
+    # farms with something to process first, then by most recent message
+    ordered = sorted(farms.values(), key=lambda f: (bool(f["pending"]), f["messages"][0]["posted_at"]),
+                     reverse=True)
     return ordered, unmapped
+
+
+def mark_farm_done(ferme_id: int) -> int:
+    """Mark every pending message of a farm (all its senders) as processed."""
+    row = execute(
+        "WITH done AS (UPDATE chat_messages m SET status = 'done' FROM chat_senders s "
+        "WHERE s.sender_name = m.sender_name AND s.ferme_id = %s AND m.status = 'new' RETURNING 1) "
+        "SELECT COUNT(*) FROM done",
+        (ferme_id,), fetch="one",
+    )
+    return row[0] if row else 0
+
+
+def senders_by_farm() -> list[dict]:
+    """Farms that have at least one linked sender, with the list of their senders."""
+    rows = execute(
+        "SELECT f.id, COALESCE(NULLIF(f.farmname, ''), f.name) AS farm, "
+        "array_agg(s.sender_name ORDER BY s.sender_name) AS senders "
+        "FROM chat_senders s JOIN fermes f ON f.id = s.ferme_id "
+        "WHERE NOT s.ignored GROUP BY f.id ORDER BY 2",
+        fetch="all", dict_rows=True,
+    ) or []
+    return [dict(r) for r in rows]
 
 
 def all_messages(limit: int = 200) -> list[dict]:

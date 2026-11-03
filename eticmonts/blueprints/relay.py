@@ -99,11 +99,20 @@ def message_status(mid):
     return redirect(request.form.get("next") or url_for("relay.inbox"))
 
 
+@bp.post("/fermes/<int:ferme_id>/traite")
+@admin_required
+def farm_done(ferme_id):
+    n = relay.mark_farm_done(ferme_id)
+    flash(f"{n} message{'s' if n > 1 else ''} marqué{'s' if n > 1 else ''} traité{'s' if n > 1 else ''}.",
+          "success")
+    return redirect(request.form.get("next") or url_for("relay.inbox"))
+
+
 @bp.get("/expediteurs")
 @admin_required
 def senders():
     return _render("whatsapp/senders.html", senders=relay.list_senders(),
-                   farm_choices=relay.farms_for_select())
+                   farm_choices=relay.farms_for_select(), by_farm=relay.senders_by_farm())
 
 
 @bp.post("/expediteurs/<int:sid>")

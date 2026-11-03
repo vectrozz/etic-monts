@@ -29,6 +29,14 @@ def test_one_item_per_line_with_bullets_emoji_and_greeting():
     assert items(msg) == [("Salade", 6.0, None), ("Radis", 3.0, "botte"), ("Pommes", 1.5, "kg")]
 
 
+def test_lead_in_before_colon_is_text():
+    msg = "et côté fruits : fraises 6 plateaux, rhubarbe 3 bottes\nPour mardi : salade x4\nPommes : 1,5 kg"
+    parsed = parse_list(msg)
+    assert [p.raw for p in parsed if p.kind == "text"] == ["et côté fruits", "Pour mardi"]
+    assert items(msg) == [("Fraises", 6.0, "plateau"), ("Rhubarbe", 3.0, "botte"),
+                          ("Salade", 4.0, None), ("Pommes", 1.5, "kg")]
+
+
 def test_decimal_comma_is_not_a_separator():
     assert items("pommes de terre 2,5 kg, oignons 10 kg") == [
         ("Pommes de terre", 2.5, "kg"), ("Oignons", 10.0, "kg")]

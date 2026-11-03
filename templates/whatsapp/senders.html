@@ -2,9 +2,23 @@
 {% block title %}Expéditeurs WhatsApp — {{ branding.name or "Etic'Monts" }}{% endblock %}
 
 {% block content %}
-{% with title="Expéditeurs", subtitle="Chaque personne du groupe, telle qu'elle apparaît sur le téléphone relais (nom du contact ou numéro), rattachée à sa ferme." %}
+{% with title="Expéditeurs", subtitle="Chaque personne du groupe, telle qu'elle apparaît sur le téléphone relais (nom du contact ou numéro), rattachée à sa ferme. Une ferme peut avoir plusieurs membres (associés d'un GAEC) : choisissez la même ferme pour chacun." %}
 {% include 'whatsapp/_header.html' %}
 {% endwith %}
+
+{% if by_farm %}
+<section class="card">
+    <div class="card-header"><h2>Fermes et leurs membres</h2><span class="card-badge">{{ by_farm|length }} ferme{{ 's' if by_farm|length > 1 else '' }}</span></div>
+    <ul class="wa-members">
+        {% for f in by_farm %}
+        <li><strong>{{ f.farm }}</strong>
+            {% for s in f.senders %}<span class="wa-chip">{{ s }}</span>{% endfor %}
+            {% if f.senders|length > 1 %}<span class="muted">· {{ f.senders|length }} membres</span>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
 
 {% if senders %}
 <div class="table-wrapper">

@@ -93,12 +93,13 @@ def _num(s: str) -> float:
 
 
 def parse_line(chunk: str) -> ParsedLine | None:
+    is_header = _strip_emoji(chunk).rstrip(" .!").endswith(":")   # checked before _clean() strips it
     text = _clean(chunk)
     if not text:
         return None
     if _DELETED.match(text):
         return None
-    if text.endswith(":") or _GREETING.search(text):
+    if is_header or _GREETING.search(text):
         return ParsedLine(raw=text, kind="text")
     for rx in (_TRAILING, _LEADING):
         m = rx.match(text)
@@ -111,11 +112,24 @@ def parse_line(chunk: str) -> ParsedLine | None:
     return ParsedLine(raw=text, kind="item", product=_product(text))
 
 
+_QTY_ONLY = re.compile(rf"^\s*{_QTY}\s*(?:{_UNIT_RE})?\.?\s*$", re.I)
+
+
+def _split_lead_in(chunk: str) -> list[str]:
+    """'et côté fruits : fraises 6 plateaux' → ['et côté fruits :', 'fraises 6 plateaux'],
+    but 'pommes : 1,5 kg' stays whole (what follows the colon is only a quantity)."""
+    head, sep, tail = chunk.partition(":")
+    if not sep or not tail.strip() or _QTY_ONLY.match(tail) or not re.search(r"[^\W\d_]", tail):
+        return [chunk]
+    return [head + ":", tail]
+
+
 def parse_list(message: str) -> list[ParsedLine]:
     """Split a message into items (product, quantity, unit) and free-text lines."""
     out: list[ParsedLine] = []
     for chunk in _SPLIT.split(message or ""):
-        line = parse_line(chunk)
-        if line is not None:
-            out.append(line)
+        for part in _split_lead_in(chunk):
+            line = parse_line(part)
+            if line is not None:
+                out.append(line)
     return out

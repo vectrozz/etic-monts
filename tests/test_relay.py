@@ -127,6 +127,40 @@ def test_status_and_badge(app, token, migrated_db):
     assert c.post(f"/whatsapp/messages/{mid}/statut", data={"status": "bogus"}).status_code == 400
 
 
+def test_gaec_several_senders_one_farm(app, token, migrated_db):
+    """Two associates of a GAEC post separately: one farm card, both lists, one click to clear."""
+    c = app.test_client()
+    login_as(c, migrated_db)
+    farm_id, farm_name = query(migrated_db, "SELECT id, farmname FROM fermes WHERE name = 'lucie'")[0]
+    r = c.post("/api/relay/messages", headers=auth(token), json={"messages": [
+        msg("fraises 6 plateaux", sender="Paul Coteau", ms=NOW_MS - 20_000),
+        msg("rhubarbe 3 bottes", sender="Lucie Coteau", ms=NOW_MS - 10_000),
+    ]})
+    assert r.get_json()["accepted"] == 2
+
+    paul = query(migrated_db, "SELECT id FROM chat_senders WHERE sender_name = 'Paul Coteau'")[0][0]
+    c.post(f"/whatsapp/expediteurs/{paul}", data={"ferme_id": str(farm_id)})
+    members = {r[0] for r in query(migrated_db, "SELECT sender_name FROM chat_senders WHERE ferme_id = %s",
+                                   (farm_id,))}
+    assert members == {"Lucie Coteau", "Paul Coteau"}
+
+    page = c.get("/whatsapp/").get_data(as_text=True)
+    assert page.count(f"<h2>{farm_name}</h2>") == 1, "one card per farm, whoever wrote"
+    assert "2 à traiter" in page
+    for text in ("Fraises", "6 plateaux", "Rhubarbe", "3 bottes", "Paul Coteau", "Lucie Coteau"):
+        assert text in page, text
+    assert "Marquer les 2 traités" in page
+
+    senders_page = c.get("/whatsapp/expediteurs").get_data(as_text=True)
+    assert "Fermes et leurs membres" in senders_page and "2 membres" in senders_page
+
+    c.post(f"/whatsapp/fermes/{farm_id}/traite")
+    assert query(migrated_db, "SELECT COUNT(*) FROM chat_messages m JOIN chat_senders s USING (sender_name) "
+                              "WHERE s.ferme_id = %s AND m.status = 'new'", (farm_id,))[0][0] == 0
+    # the unmapped number's message is untouched
+    assert query(migrated_db, "SELECT status FROM chat_messages WHERE sender_name = '+33 6 12 34 56 78'")[0][0] == "new"
+
+
 def test_other_pages_render(app, token, migrated_db):
     c = app.test_client()
     login_as(c, migrated_db)

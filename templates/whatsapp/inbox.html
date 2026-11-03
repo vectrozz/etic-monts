@@ -33,7 +33,7 @@
         <h2>À associer à une ferme</h2>
         <span class="card-badge">{{ unmapped|map(attribute='sender_name')|unique|list|length }} expéditeur(s)</span>
     </div>
-    <p class="card-sub">Ces personnes ont écrit dans le groupe mais ne sont rattachées à aucune ferme. Associez-les une fois : leurs messages passés et futurs suivront.</p>
+    <p class="card-sub">Ces personnes ont écrit dans le groupe mais ne sont rattachées à aucune ferme. Associez-les une fois : leurs messages passés et futurs suivront. Plusieurs personnes peuvent être rattachées à la même ferme (associés d'un GAEC) : leurs listes sont regroupées sur la carte de la ferme.</p>
     {% for sender_name, msgs in unmapped|groupby('sender_name') %}
     {% set s = unmapped_senders.get(sender_name) %}
     <div class="wa-sender-row">
@@ -61,42 +61,52 @@
 {% if farms %}
 <div class="wa-grid">
     {% for f in farms %}
-    {% set m = f.messages[0] %}
-    <article class="card wa-card {% if m.status != 'new' %}is-done{% endif %}">
+    {# Pending messages of every member of the farm (GAEC); otherwise its latest message. #}
+    {% set shown = f.pending if f.pending else f.messages[:1] %}
+    {% set history = f.history if f.pending else f.history[1:] %}
+    <article class="card wa-card {% if not f.pending %}is-done{% endif %}">
         <header class="wa-card-head">
             <div>
                 <h2>{{ f.name }}</h2>
-                <span class="muted">{{ m.posted_at|local_dt }} · {{ m.sender_name }}</span>
+                <span class="muted">{{ f.senders|join(', ') }}</span>
             </div>
-            {% if m.status == 'new' %}<span class="role-pill role-pending">à traiter</span>{% else %}<span class="role-pill role-done">traité</span>{% endif %}
+            {% if f.pending %}<span class="role-pill role-pending">{{ f.pending|length }} à traiter</span>{% else %}<span class="role-pill role-done">traité</span>{% endif %}
         </header>
-        {{ parsed_table(m.parsed) }}
+        {% for m in shown %}
+        <section class="wa-msg">
+            <div class="wa-msg-meta"><strong>{{ m.sender_name }}</strong> <span class="muted">· {{ m.posted_at|local_dt }}</span></div>
+            {{ parsed_table(m.parsed) }}
+            <details class="wa-raw">
+                <summary>Message d'origine</summary>
+                <p class="wa-body">{{ m.body }}</p>
+            </details>
+        </section>
+        {% endfor %}
+        {% if history %}
         <details class="wa-raw">
-            <summary>Message d'origine</summary>
-            <p class="wa-body">{{ m.body }}</p>
-        </details>
-        {% if f.messages|length > 1 %}
-        <details class="wa-raw">
-            <summary>{{ f.messages|length - 1 }} message{{ 's' if f.messages|length > 2 else '' }} plus ancien{{ 's' if f.messages|length > 2 else '' }}</summary>
-            {% for old in f.messages[1:] %}
+            <summary>Historique : {{ history|length }} message{{ 's' if history|length > 1 else '' }}</summary>
+            {% for old in history %}
             <div class="wa-old">
-                <span class="muted">{{ old.posted_at|local_dt }}</span>
+                <span class="muted">{{ old.posted_at|local_dt }} · {{ old.sender_name }}</span>
                 <p class="wa-body">{{ old.body }}</p>
             </div>
             {% endfor %}
         </details>
         {% endif %}
         <footer class="wa-card-foot">
-            <form method="post" action="{{ url_for('relay.message_status', mid=m.id) }}">
+            {% if f.pending %}
+            <form method="post" action="{{ url_for('relay.farm_done', ferme_id=f.ferme_id) }}">
                 <input type="hidden" name="next" value="{{ request.full_path }}">
-                {% if m.status == 'new' %}
-                <input type="hidden" name="status" value="done">
-                <button class="btn btn-secondary btn-sm" type="submit">{{ icon('check', 'icon-sm') }} Marquer traité</button>
-                {% else %}
+                <button class="btn btn-secondary btn-sm" type="submit">{{ icon('check', 'icon-sm') }}
+                    {% if f.pending|length > 1 %}Marquer les {{ f.pending|length }} traités{% else %}Marquer traité{% endif %}</button>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url_for('relay.message_status', mid=shown[0].id) }}">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
                 <input type="hidden" name="status" value="new">
                 <button class="btn btn-ghost btn-sm" type="submit">Remettre à traiter</button>
-                {% endif %}
             </form>
+            {% endif %}
         </footer>
     </article>
     {% endfor %}

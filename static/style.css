@@ -1202,6 +1202,17 @@ a.section-tab { text-decoration: none; }
 .wa-body { white-space: pre-wrap; font-size: 0.875rem; color: var(--text-soft); background: var(--bg-sunken); border-radius: var(--radius-sm); padding: 8px 10px; margin-top: 4px; }
 .wa-old { margin-top: 8px; font-size: 0.8rem; }
 .wa-card-foot { display: flex; justify-content: flex-end; }
+.wa-msg { display: grid; gap: 6px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.wa-msg:first-of-type { border-top: none; padding-top: 0; }
+.wa-msg-meta { font-size: 0.82rem; }
+.wa-members { list-style: none; display: grid; gap: 10px; }
+.wa-members li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.9rem; }
+.wa-members li strong { margin-right: 4px; }
+.wa-chip {
+    display: inline-flex; align-items: center; padding: 2px 9px;
+    border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+    font-size: 0.8rem; font-weight: 600;
+}
 .wa-unmapped { border-color: color-mix(in srgb, var(--chart-3) 45%, var(--border)); }
 .wa-sender-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); }
 .wa-sender-msg .wa-body { max-height: 5.5em; overflow: hidden; }
