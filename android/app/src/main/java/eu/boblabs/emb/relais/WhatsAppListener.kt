@@ -26,8 +26,8 @@ class WhatsAppListener : NotificationListenerService() {
         val settings = Settings(this)
         try {
             val parsed = NotificationParser.parse(toRaw(sbn))
-            // Only the conversation name is remembered, to help type the exact group name.
-            parsed.firstOrNull()?.let { settings.lastSeenChat = it.chat }
+            // Only group names are remembered (not the content), to pick the groups to follow.
+            parsed.map { it.chat }.distinct().forEach(settings::rememberChat)
             val filter = GroupFilter(settings.groups)
             if (!settings.isPaired || filter.isEmpty) return
             val captured = parsed.filter { filter.matches(it.chat) }

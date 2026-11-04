@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -14,9 +15,12 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.service.notification.NotificationListenerService
+import android.util.Log
+import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -142,14 +146,25 @@ class MainActivity : Activity() {
                         UploadWorker.enqueue(this)
                         getString(R.string.paired, settings.server, hardwareLabel(hardware))
                     }
-                    is Api.Result.Unauthorized -> { DeviceKey.delete(); getString(R.string.pair_refused) }
-                    is Api.Result.Failed -> { DeviceKey.delete(); r.message }
+                    is Api.Result.Unauthorized -> { DeviceKey.delete(); fail(getString(R.string.pair_refused)) }
+                    is Api.Result.Failed -> {
+                        DeviceKey.delete()
+                        fail(getString(R.string.pair_failed, r.message))
+                    }
                 }
             } catch (e: Exception) {
-                getString(R.string.pair_key_error, e.javaClass.simpleName)
+                Log.w("EmbRelais", "pairing failed", e)
+                fail(getString(R.string.pair_key_error, e.javaClass.simpleName))
             }
             main.post { toast(msg); refresh() }
         }
+    }
+
+    /** Keep a failed pairing visible in the status card (a toast is easy to miss). */
+    private fun fail(message: String): String {
+        Log.w("EmbRelais", "pairing: $message")
+        settings.lastError = message
+        return message
     }
 
     private fun hardwareLabel(h: String) = when (h) {
@@ -214,19 +229,57 @@ class MainActivity : Activity() {
             getString(R.string.st_counts, pending, sent),
         )
         if (settings.lastSyncAt > 0) lines += getString(R.string.st_last_sync, time.format(Date(settings.lastSyncAt)))
-        settings.lastSeenChat?.let { chat ->
-            val followed = GroupFilter(g).matches(chat)
-            lines += getString(if (followed) R.string.st_last_chat_followed else R.string.st_last_chat_ignored, chat)
-        }
         settings.lastError?.let { lines += "! $it" }
         status.text = lines.joinToString("\n")
         // Setup buttons disappear once their step is done.
         findViewById<Button>(R.id.btn_access).visibility = if (hasNotificationAccess()) View.GONE else View.VISIBLE
         findViewById<Button>(R.id.btn_battery).visibility = if (ignoresBatteryOptimizations()) View.GONE else View.VISIBLE
 
+        renderChats()
+
         recent.text = if (rows.isEmpty()) getString(R.string.no_messages) else rows.joinToString("\n\n") { r ->
             val state = if (r.sentAt != null) ok else "…"
-            "$state ${time.format(Date(r.message.postedAt))} · ${r.message.sender}\n${r.message.text.take(160)}"
+            "$state ${time.format(Date(r.message.postedAt))} · ${r.message.chat} · ${r.message.sender}\n" +
+                r.message.text.take(160)
+        }
+    }
+
+    /** Group names seen by the listener, each with a Follow / Unfollow button. */
+    private fun renderChats() {
+        val box = findViewById<LinearLayout>(R.id.chats)
+        box.removeAllViews()
+        val chats = settings.recentChats
+        if (chats.isEmpty()) {
+            box.addView(TextView(this, null, 0, R.style.Text_Body).apply { text = getString(R.string.chats_empty) })
+            return
+        }
+        val dp = resources.displayMetrics.density
+        for (chat in chats) {
+            val followed = settings.isFollowed(chat)
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, (6 * dp).toInt(), 0, (6 * dp).toInt())
+            }
+            row.addView(TextView(this, null, 0, R.style.Text_Body).apply {
+                text = if (followed) getString(R.string.chat_followed, chat) else chat
+                if (followed) setTypeface(typeface, Typeface.BOLD)
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            row.addView(Button(this, null, 0,
+                if (followed) R.style.Button_Secondary else R.style.Button_Primary).apply {
+                text = getString(if (followed) R.string.chat_unfollow else R.string.chat_follow)
+                minHeight = (40 * dp).toInt()
+                setPadding((14 * dp).toInt(), 0, (14 * dp).toInt(), 0)
+                contentDescription = "${text} : $chat"
+                setOnClickListener {
+                    if (followed) settings.unfollow(chat) else settings.follow(chat)
+                    toast(getString(if (followed) R.string.chat_now_unfollowed else R.string.chat_now_followed, chat))
+                    fillForm()
+                    refresh()
+                }
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { marginStart = (12 * dp).toInt() })
+            box.addView(row)
         }
     }
 

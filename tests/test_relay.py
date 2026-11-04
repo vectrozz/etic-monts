@@ -298,6 +298,20 @@ def test_gaec_several_senders_one_farm(app, phone, migrated_db):
     assert query(migrated_db, "SELECT status FROM chat_messages WHERE sender_name = '+33 6 12 34 56 78'")[0][0] == "new"
 
 
+def test_messages_from_several_groups_show_their_group(app, phone, migrated_db):
+    """A WhatsApp community: one farm posts in two of its groups."""
+    c = app.test_client()
+    login_as(c, migrated_db)
+    r = phone.send([msg("navets 2 colis", chat="Légumes · EMB", ms=NOW_MS - 5_000),
+                    msg("pommes 4 cagettes", chat="Fruits · EMB", ms=NOW_MS - 4_000)])
+    assert r.get_json()["accepted"] == 2
+    page = c.get("/whatsapp/").get_data(as_text=True)
+    assert "Légumes · EMB" in page and "Fruits · EMB" in page
+    assert "Navets" in page and "4 cagettes" in page
+    table = c.get("/whatsapp/messages").get_data(as_text=True)
+    assert "<th>Groupe</th>" in table and "Fruits · EMB" in table
+
+
 def test_other_pages_render(app, phone, migrated_db):
     c = app.test_client()
     login_as(c, migrated_db)

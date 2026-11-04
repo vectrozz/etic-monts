@@ -9,11 +9,12 @@
 {% if messages %}
 <div class="table-wrapper">
     <table>
-        <thead><tr><th>Date</th><th>Expéditeur</th><th>Ferme</th><th>Message</th><th>Statut</th></tr></thead>
+        <thead><tr><th>Date</th><th>Groupe</th><th>Expéditeur</th><th>Ferme</th><th>Message</th><th>Statut</th></tr></thead>
         <tbody>
         {% for m in messages %}
         <tr>
             <td class="num">{{ m.posted_at|local_dt }}</td>
+            <td>{{ m.chat_title }}</td>
             <td>{{ m.sender_name }}</td>
             <td>{% if m.ignored %}<span class="muted">ignoré</span>{% else %}{{ m.farmname or m.login or '—' }}{% endif %}</td>
             <td class="wa-cell">{{ m.body }}</td>

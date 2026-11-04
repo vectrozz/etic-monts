@@ -30,11 +30,15 @@ pour que les listes de chaque ferme arrivent toutes seules dans
 ## Installation (une fois)
 
 1. Sur le site (compte admin) : **WhatsApp → Téléphone relais → Nouveau
-   téléphone**, avec le nom exact du groupe.
+   téléphone** (le nom du groupe est facultatif).
 2. Installer l'APK sur le téléphone :
-   - par câble : `adb install android/dist/emb-relais-1.1.0.apk`
-   - ou copier le fichier sur le téléphone et l'ouvrir (autoriser
-     « Installer des applis inconnues » pour le gestionnaire de fichiers).
+   - par câble : `adb install android/dist/emb-relais-1.2.0.apk`
+   - ou copier le fichier sur le téléphone et l'ouvrir. Si **Google Play
+     Protect** bloque (app hors Play Store demandant l'accès aux
+     notifications) : *Plus de détails → Installer quand même*, ou couper
+     temporairement l'analyse Play Protect le temps de l'installation. L'accès
+     aux notifications sera ensuite « paramètre restreint » : *Paramètres →
+     Applications → EMB Relais → ⋮ → Autoriser les paramètres restreints*.
 3. Sur le téléphone, ouvrir la page du site et toucher **Associer
    l'application** (dans les 24 h) : l'app s'ouvre, crée sa clé de sécurité,
    s'enregistre auprès du serveur avec le code à usage unique et retient le
@@ -42,12 +46,17 @@ pour que les listes de chaque ferme arrivent toutes seules dans
 4. Dans l'app : **Autoriser l'accès aux notifications** (activer « EMB
    Relais »), puis **Ignorer l'optimisation de batterie** (sinon certains
    téléphones — Xiaomi, Samsung, Huawei — coupent l'app en arrière-plan).
-5. Vérifier : quand une ferme écrit, la ligne « Dernière discussion WhatsApp
-   vue » affiche le groupe « (suivie) » et le message apparaît dans
-   « Derniers messages » puis sur le site.
+5. **Choisir les groupes** : dès qu'un groupe reçoit un message, il apparaît
+   dans la carte **Discussions de groupe vues** de l'app, avec son nom exact.
+   Toucher **Suivre** pour chaque groupe à transmettre. Les messages arrivent
+   alors dans « Derniers messages » puis sur le site.
 
-Si « non suivie » s'affiche pour le groupe des producteurs : corriger le nom
-dans **Configuration** (un groupe par ligne, tel qu'affiché par WhatsApp).
+**Communauté WhatsApp** : chaque groupe d'une communauté a son propre nom
+dans les notifications ; le nom de la communauté ne désigne que son groupe
+d'annonces. Suivre donc chacun des groupes voulus (carte « Discussions de
+groupe vues », ou un nom par ligne dans **Configuration**). Les messages
+reçus avant de suivre un groupe ne sont pas transmis (l'app n'en garde pas le
+contenu).
 
 ## Sécurité
 

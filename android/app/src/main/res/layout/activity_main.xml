@@ -43,6 +43,13 @@
             <Button android:id="@+id/btn_simulate" style="@style/Button.Secondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/btn_simulate" android:visibility="gone" />
         </LinearLayout>
 
+        <!-- Group conversations seen: one tap to follow -->
+        <LinearLayout style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+            <TextView style="@style/Text.Section" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/section_chats" />
+            <TextView style="@style/Text.Muted" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/chats_hint" />
+            <LinearLayout android:id="@+id/chats" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="vertical" />
+        </LinearLayout>
+
         <!-- Configuration -->
         <LinearLayout style="@style/Card" android:layout_width="match_parent" android:layout_height="wrap_content">
             <TextView style="@style/Text.Section" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/section_config" />

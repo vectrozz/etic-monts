@@ -32,8 +32,14 @@
     <string name="st_no_group">Aucun groupe : rien n\'est transmis</string>
     <string name="st_counts">En attente : %1$d · envoyés : %2$d</string>
     <string name="st_last_sync">Dernier envoi : %1$s</string>
-    <string name="st_last_chat_followed">Dernière discussion WhatsApp vue : « %1$s » (suivie)</string>
-    <string name="st_last_chat_ignored">Dernière discussion WhatsApp vue : « %1$s » (non suivie — vérifiez le nom exact du groupe)</string>
+    <string name="section_chats">Discussions de groupe vues</string>
+    <string name="chats_hint">Les groupes WhatsApp dont le téléphone a reçu des messages (seul leur nom est conservé, sur le téléphone). Dans une communauté, chaque groupe a son propre nom : suivez chacun des groupes à transmettre. Le groupe d\'annonces porte le nom de la communauté.</string>
+    <string name="chats_empty">Aucun message de groupe reçu depuis l\'installation. Dès qu\'un groupe reçoit un message, il apparaît ici.</string>
+    <string name="chat_follow">Suivre</string>
+    <string name="chat_unfollow">Ne plus suivre</string>
+    <string name="chat_followed">✓ %1$s</string>
+    <string name="chat_now_followed">« %1$s » est suivi : ses prochains messages seront transmis</string>
+    <string name="chat_now_unfollowed">« %1$s » n\'est plus suivi</string>
 
     <string name="no_messages">Aucun message capté pour l\'instant.</string>
     <string name="paired">Associée à %1$s — clé : %2$s</string>
@@ -41,6 +47,7 @@
     <string name="pair_invalid">Lien d\'association invalide</string>
     <string name="pair_refused">Code refusé : invalide, expiré ou déjà utilisé. Créez un nouveau lien sur le site.</string>
     <string name="pair_key_error">Impossible de créer la clé de sécurité (%1$s)</string>
+    <string name="pair_failed">Association impossible (%1$s). Le code reste valable : retouchez le lien d\'association.</string>
     <string name="hw_strongbox">puce StrongBox</string>
     <string name="hw_tee">puce sécurisée (TEE)</string>
     <string name="hw_software">logicielle</string>

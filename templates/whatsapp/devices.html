@@ -36,9 +36,9 @@
                 <input id="d-name" name="name" maxlength="80" placeholder="Téléphone du coordinateur" required>
             </div>
             <div class="form-group">
-                <label for="d-group">Nom exact du groupe WhatsApp</label>
+                <label for="d-group">Nom exact du groupe WhatsApp <span class="muted">(facultatif)</span></label>
                 <input id="d-group" name="group" maxlength="160" placeholder="Producteurs Etic'Monts">
-                <p class="form-hint">Tel qu'il s'affiche dans WhatsApp. Seuls les messages de ce groupe sont transmis (modifiable ensuite dans l'application).</p>
+                <p class="form-hint">Tel qu'il s'affiche dans WhatsApp. Pour une <strong>communauté</strong>, indiquez un de ses groupes (pas le nom de la communauté), ou laissez vide : dans l'application, la carte « Discussions de groupe vues » permet de suivre chaque groupe d'un geste.</p>
             </div>
             <button class="btn btn-primary" type="submit">{{ icon('plus', 'icon-sm') }} Créer et obtenir le lien</button>
         </form>

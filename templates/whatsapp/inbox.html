@@ -38,7 +38,7 @@
     {% set s = unmapped_senders.get(sender_name) %}
     <div class="wa-sender-row">
         <div class="wa-sender-msg">
-            <strong>{{ sender_name }}</strong> <span class="muted">· {{ msgs|length }} message{{ 's' if msgs|length > 1 else '' }} · {{ msgs[0].posted_at|local_dt }}</span>
+            <strong>{{ sender_name }}</strong> <span class="muted">· {{ msgs|length }} message{{ 's' if msgs|length > 1 else '' }} · {{ msgs[0].chat_title }} · {{ msgs[0].posted_at|local_dt }}</span>
             <p class="wa-body">{{ msgs[0].body }}</p>
         </div>
         {% if s %}
@@ -74,7 +74,7 @@
         </header>
         {% for m in shown %}
         <section class="wa-msg">
-            <div class="wa-msg-meta"><strong>{{ m.sender_name }}</strong> <span class="muted">· {{ m.posted_at|local_dt }}</span></div>
+            <div class="wa-msg-meta"><strong>{{ m.sender_name }}</strong> <span class="muted">· {{ m.chat_title }} · {{ m.posted_at|local_dt }}</span></div>
             {{ parsed_table(m.parsed) }}
             <details class="wa-raw">
                 <summary>Message d'origine</summary>
@@ -87,7 +87,7 @@
             <summary>Historique : {{ history|length }} message{{ 's' if history|length > 1 else '' }}</summary>
             {% for old in history %}
             <div class="wa-old">
-                <span class="muted">{{ old.posted_at|local_dt }} · {{ old.sender_name }}</span>
+                <span class="muted">{{ old.posted_at|local_dt }} · {{ old.sender_name }} · {{ old.chat_title }}</span>
                 <p class="wa-body">{{ old.body }}</p>
             </div>
             {% endfor %}

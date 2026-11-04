@@ -44,10 +44,30 @@ class Settings(context: Context) {
         get() = prefs.getString("last_error", null)
         set(v) = prefs.edit().putString("last_error", v).apply()
 
-    /** Name (never the content) of the last WhatsApp conversation seen, to help set the exact group name. */
-    var lastSeenChat: String?
-        get() = prefs.getString("last_seen_chat", null)
-        set(v) = prefs.edit().putString("last_seen_chat", v).apply()
+    /**
+     * Names (never the content) of the group conversations seen recently, most
+     * recent first, so the user can pick the groups to follow with one tap —
+     * e.g. the groups of a WhatsApp community, which each have their own name.
+     */
+    val recentChats: List<String>
+        get() = prefs.getString("recent_chats", "").orEmpty().split('\n').filter { it.isNotBlank() }
+
+    @Synchronized
+    fun rememberChat(chat: String) {
+        val list = (listOf(chat) + recentChats.filter { it != chat }).take(20)
+        prefs.edit().putString("recent_chats", list.joinToString("\n")).apply()
+    }
+
+    fun isFollowed(chat: String) = GroupFilter(groups).matches(chat)
+
+    fun follow(chat: String) {
+        if (!isFollowed(chat)) groupsText = (groups + chat).joinToString("\n")
+    }
+
+    fun unfollow(chat: String) {
+        val key = GroupFilter.normalize(chat)
+        groupsText = groups.filter { GroupFilter.normalize(it) != key }.joinToString("\n")
+    }
 
     val isPaired: Boolean get() = server.startsWith("http") && deviceId > 0
 }
