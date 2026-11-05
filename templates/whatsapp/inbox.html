@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from 'partials/icons.html' import icon %}
+{% from 'whatsapp/_farm_pick.html' import farm_pick %}
 {% block title %}Listes WhatsApp — {{ branding.name or "Etic'Monts" }}{% endblock %}
 
 {% macro parsed_table(parsed) -%}
@@ -41,18 +42,7 @@
             <strong>{{ sender_name }}</strong> <span class="muted">· {{ msgs|length }} message{{ 's' if msgs|length > 1 else '' }} · {{ msgs[0].chat_title }} · {{ msgs[0].posted_at|local_dt }}</span>
             <p class="wa-body">{{ msgs[0].body }}</p>
         </div>
-        {% if s %}
-        <form method="post" action="{{ url_for('relay.map_sender', sid=s.id) }}" class="wa-map-form">
-            <input type="hidden" name="next" value="{{ request.full_path }}">
-            <label class="sr-only" for="map-{{ s.id }}">Ferme de {{ sender_name }}</label>
-            <select id="map-{{ s.id }}" name="ferme_id" required>
-                <option value="">Choisir la ferme…</option>
-                {% for f in farm_choices %}<option value="{{ f.id }}">{{ f.label }}</option>{% endfor %}
-                <option value="ignore">— Ignorer cet expéditeur</option>
-            </select>
-            <button type="submit" class="btn btn-primary btn-sm">Associer</button>
-        </form>
-        {% endif %}
+        {% if s %}{{ farm_pick(s, farm_choices, request.full_path) }}{% endif %}
     </div>
     {% endfor %}
 </section>

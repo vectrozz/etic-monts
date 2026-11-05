@@ -37,6 +37,39 @@
         });
     });
 
+    /* ---- Farm picker (WhatsApp senders): filter + Enter picks the first match ---- */
+    function fold(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+    document.querySelectorAll('.farm-pick').forEach(function (pick) {
+        var input = pick.querySelector('.farm-pick-filter');
+        var chips = Array.prototype.slice.call(pick.querySelectorAll('.farm-chip[data-label]'));
+        var empty = pick.querySelector('.farm-pick-empty');
+        pick.addEventListener('toggle', function () {
+            if (!pick.open) return;
+            // one picker open at a time
+            document.querySelectorAll('.farm-pick[open]').forEach(function (o) { if (o !== pick) o.open = false; });
+            if (input) input.focus();
+        });
+        if (!input) return;
+        input.addEventListener('input', function () {
+            var q = fold(input.value.trim());
+            var shown = 0;
+            chips.forEach(function (c) {
+                c.hidden = !!q && fold(c.dataset.label).indexOf(q) === -1;
+                if (!c.hidden) shown++;
+            });
+            if (empty) empty.hidden = shown > 0;
+        });
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {            // never submit without a farm
+                e.preventDefault();
+                var first = chips.filter(function (c) { return !c.hidden; })[0];
+                if (first) first.click();
+            } else if (e.key === 'Escape') {
+                pick.open = false;
+            }
+        });
+    });
+
     /* ---- Theme: auto (system) / light / dark ----------------------------- */
     var themeSelect = document.getElementById('theme-select');
     function currentTheme() {

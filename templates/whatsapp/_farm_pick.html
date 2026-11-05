@@ -1,0 +1,30 @@
+{# Farm picker without a native <select> popup (some Linux browsers close those instantly).
+   An inline panel: filter field + one submit button per farm. Works without JS
+   (the filter is a progressive enhancement in static/js/app.js). #}
+{% macro farm_pick(sender, choices, next_url, summary=None) -%}
+<details class="farm-pick">
+    <summary class="btn btn-sm {{ 'btn-secondary' if sender.ferme_id or sender.ignored else 'btn-primary' }}">
+        {{ summary or ('Associer à une ferme' if not sender.ferme_id else 'Changer de ferme') }}
+    </summary>
+    <div class="farm-pick-panel">
+        <label class="sr-only" for="pick-{{ sender.id }}">Filtrer les fermes</label>
+        <input type="search" id="pick-{{ sender.id }}" class="farm-pick-filter" placeholder="Filtrer : nom de la ferme…" autocomplete="off">
+        <form method="post" action="{{ url_for('relay.map_sender', sid=sender.id) }}" class="farm-pick-list">
+            <input type="hidden" name="next" value="{{ next_url }}">
+            {% for f in choices %}
+            <button type="submit" name="ferme_id" value="{{ f.id }}" class="farm-chip {% if sender.ferme_id == f.id %}is-current{% endif %}"
+                    data-label="{{ f.label }}" {% if sender.ferme_id == f.id %}aria-pressed="true"{% endif %}>{{ f.label }}</button>
+            {% endfor %}
+            <p class="farm-pick-empty muted" hidden>Aucune ferme ne correspond.</p>
+            <div class="farm-pick-other">
+                {% if sender.ferme_id or sender.ignored %}
+                <button type="submit" name="ferme_id" value="" class="btn btn-ghost btn-sm">Retirer l'association</button>
+                {% endif %}
+                {% if not sender.ignored %}
+                <button type="submit" name="ferme_id" value="ignore" class="btn btn-ghost btn-sm">Ignorer cet expéditeur</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</details>
+{%- endmacro %}

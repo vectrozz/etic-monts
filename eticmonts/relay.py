@@ -206,7 +206,8 @@ def new_count() -> int:
 
 def list_senders() -> list[dict]:
     rows = execute(
-        "SELECT s.id, s.sender_name, s.ferme_id, s.ignored, f.farmname, "
+        "SELECT s.id, s.sender_name, s.ferme_id, s.ignored, "
+        "COALESCE(NULLIF(f.farmname, ''), f.name) AS farmname, "
         "(SELECT COUNT(*) FROM chat_messages m WHERE m.sender_name = s.sender_name) AS messages, "
         "(SELECT MAX(posted_at) FROM chat_messages m WHERE m.sender_name = s.sender_name) AS last_at "
         "FROM chat_senders s LEFT JOIN fermes f ON f.id = s.ferme_id "

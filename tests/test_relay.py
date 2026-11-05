@@ -247,6 +247,9 @@ def test_inbox_maps_sender_to_farm(app, phone, migrated_db):
 
     sid = query(migrated_db, "SELECT id FROM chat_senders WHERE sender_name = 'Lucie Coteau'")[0][0]
     farm_id, farm_name = query(migrated_db, "SELECT id, farmname FROM fermes WHERE name = 'lucie'")[0]
+    # picker = one submit button per farm, no native <select> (closes instantly in some browsers)
+    assert 'class="farm-pick"' in page and f'name="ferme_id" value="{farm_id}"' in page
+    assert '<select' not in page.split("À associer à une ferme")[1].split("</section>")[0]
     assert c.post(f"/whatsapp/expediteurs/{sid}", data={"ferme_id": str(farm_id)}).status_code == 302
 
     page = c.get("/whatsapp/").get_data(as_text=True)

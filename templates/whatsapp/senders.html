@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Expéditeurs WhatsApp — {{ branding.name or "Etic'Monts" }}{% endblock %}
 
+{% from 'whatsapp/_farm_pick.html' import farm_pick %}
 {% block content %}
 {% with title="Expéditeurs", subtitle="Chaque personne du groupe, telle qu'elle apparaît sur le téléphone relais (nom du contact ou numéro), rattachée à sa ferme. Une ferme peut avoir plusieurs membres (associés d'un GAEC) : choisissez la même ferme pour chacun." %}
 {% include 'whatsapp/_header.html' %}
@@ -30,16 +31,13 @@
             <td><strong>{{ s.sender_name }}</strong></td>
             <td class="num">{{ s.messages }}</td>
             <td class="num">{{ s.last_at|local_dt }}</td>
-            <td>
-                <form method="post" action="{{ url_for('relay.map_sender', sid=s.id) }}" class="wa-inline">
-                    <label class="sr-only" for="sender-{{ s.id }}">Ferme de {{ s.sender_name }}</label>
-                    <select id="sender-{{ s.id }}" name="ferme_id">
-                        <option value="" {% if not s.ferme_id and not s.ignored %}selected{% endif %}>— non associé</option>
-                        {% for f in farm_choices %}<option value="{{ f.id }}" {% if s.ferme_id == f.id %}selected{% endif %}>{{ f.label }}</option>{% endfor %}
-                        <option value="ignore" {% if s.ignored %}selected{% endif %}>Ignorer (ex. coordinateur)</option>
-                    </select>
-                    <button class="btn btn-secondary btn-sm" type="submit">Enregistrer</button>
-                </form>
+            <td class="wa-farm-cell">
+                <span class="wa-farm-current">
+                    {% if s.ignored %}<span class="muted">ignoré</span>
+                    {% elif s.ferme_id %}<strong>{{ s.farmname or '—' }}</strong>
+                    {% else %}<span class="role-pill role-pending">non associé</span>{% endif %}
+                </span>
+                {{ farm_pick(s, farm_choices, request.full_path, summary=('Associer' if not s.ferme_id and not s.ignored else 'Modifier')) }}
             </td>
         </tr>
         {% endfor %}

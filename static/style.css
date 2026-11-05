@@ -1214,7 +1214,7 @@ a.section-tab { text-decoration: none; }
     font-size: 0.8rem; font-weight: 600;
 }
 .wa-unmapped { border-color: color-mix(in srgb, var(--chart-3) 45%, var(--border)); }
-.wa-sender-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); }
+.wa-sender-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 12px 0; border-top: 1px solid var(--border); }
 .wa-sender-msg .wa-body { max-height: 5.5em; overflow: hidden; }
 .wa-map-form, .wa-inline { display: flex; gap: 8px; align-items: center; }
 .wa-cell { white-space: pre-wrap !important; min-width: 260px; max-width: 520px; }
@@ -1223,6 +1223,41 @@ a.section-tab { text-decoration: none; }
 .wa-pair .btn-lg { margin-bottom: 12px; }
 .wa-token { word-break: break-all; }
 .wa-actions { display: flex; gap: 6px; align-items: flex-start; }
+
+/* Farm picker (no native <select> popup) */
+.farm-pick { justify-self: end; }
+.farm-pick > summary { list-style: none; }
+.farm-pick > summary::-webkit-details-marker { display: none; }
+.farm-pick[open] > summary { margin-bottom: 8px; }
+.farm-pick-panel {
+    width: min(380px, 80vw);
+    white-space: normal;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    box-shadow: var(--shadow);
+}
+.farm-pick-filter { width: 100%; margin-bottom: 8px; }
+.farm-pick-list { display: flex; flex-wrap: wrap; gap: 6px; max-height: 260px; overflow-y: auto; }
+.farm-chip {
+    padding: 5px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--bg-card);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.farm-chip:hover, .farm-chip:focus-visible { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.farm-chip.is-current { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.farm-chip[hidden] { display: none; }
+.farm-pick-other { flex-basis: 100%; display: flex; gap: 6px; flex-wrap: wrap; padding-top: 6px; margin-top: 2px; border-top: 1px solid var(--border); }
+.wa-farm-cell { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.wa-farm-current { padding-top: 5px; min-width: 120px; }
 @media (max-width: 860px) {
     .wa-sender-row { grid-template-columns: minmax(0, 1fr); }
     .wa-map-form { flex-wrap: wrap; }
