@@ -19,15 +19,12 @@
             <td>{% if m.ignored %}<span class="muted">ignoré</span>{% else %}{{ m.farmname or m.login or '—' }}{% endif %}</td>
             <td class="wa-cell">{{ m.body }}</td>
             <td>
-                <form method="post" action="{{ url_for('relay.message_status', mid=m.id) }}" class="wa-inline">
+                <form method="post" action="{{ url_for('relay.message_status', mid=m.id) }}" class="seg" aria-label="Statut du message">
                     <input type="hidden" name="next" value="{{ request.full_path }}">
-                    <label class="sr-only" for="st-{{ m.id }}">Statut</label>
-                    <select id="st-{{ m.id }}" name="status" onchange="this.form.submit()">
-                        {% for v, l in (('new', 'à traiter'), ('done', 'traité'), ('ignored', 'ignoré')) %}
-                        <option value="{{ v }}" {% if m.status == v %}selected{% endif %}>{{ l }}</option>
-                        {% endfor %}
-                    </select>
-                    <noscript><button class="btn btn-sm" type="submit">OK</button></noscript>
+                    {% for v, l in (('new', 'nouveau'), ('done', 'lu'), ('ignored', 'hors stock')) %}
+                    <button type="submit" name="status" value="{{ v }}" class="seg-btn {% if m.status == v %}is-on{% endif %}"
+                            {% if m.status == v %}aria-pressed="true"{% endif %}>{{ l }}</button>
+                    {% endfor %}
                 </form>
             </td>
         </tr>

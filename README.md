@@ -14,7 +14,7 @@ Production : <https://emb.boblabs.eu>
 | **MAEC** (cœur) | Comptes, tableau de bord surfaces / biodiversité / plastique / sol / eau / lutte intégrée, fiche ferme, synthèse réseau, coefficients, catalogue partagé | toujours |
 | `cout_revient` | Coût de revient par culture (fraise) : temps de travail, intrants, structure → €/kg, marge, repères réseau anonymes | `FEATURES=cout_revient` |
 | `marketplace` | Produits, stocks, clients et liens de commande, commandes, tournées | `FEATURES=…,marketplace` |
-| `whatsapp` | Listes des fermes reçues du groupe WhatsApp via l'app Android « EMB Relais » ([android/](android/README.md)) : boîte de réception par ferme, expéditeurs → fermes, téléphones relais | `FEATURES=…,whatsapp` |
+| `whatsapp` | Listes des fermes reçues du groupe WhatsApp via l'app Android « EMB Relais » ([android/](android/README.md)) : **stock de légumes total et par ferme calculé depuis les listes** (règles dans `eticmonts/stock_board.py`, export CSV), boîte de réception par ferme, expéditeurs → fermes, téléphones relais | `FEATURES=…,whatsapp` |
 
 `FEATURES` est une liste séparée par des virgules (`all` = tout). La
 production tourne avec `FEATURES=cout_revient`. Un module désactivé n'a ni

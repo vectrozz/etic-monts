@@ -1,14 +1,16 @@
 """WhatsApp relay — JSON API for the Android app + admin inbox."""
 from __future__ import annotations
 
+import csv
+import io
 import os
 from urllib.parse import urlencode
 
 from flask import (
-    Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for,
+    Blueprint, Response, abort, flash, jsonify, redirect, render_template, request, session, url_for,
 )
 
-from .. import relay, relay_auth
+from .. import relay, relay_auth, stock_board
 from ..chat_parser import parse_list
 from ..security import admin_required, get_session_context
 
@@ -93,17 +95,45 @@ def _render(template: str, **kw):
                            relay_apk_url=os.environ.get("RELAY_APK_URL", ""), **kw)
 
 
+def _days(default: int = 7) -> int:
+    try:
+        return max(1, min(60, int(request.args.get("jours", default))))
+    except ValueError:
+        return default
+
+
+@bp.get("/stocks")
+@admin_required
+def stocks():
+    days = _days()
+    return _render("whatsapp/stocks.html", board=stock_board.load(days), days=days)
+
+
+@bp.get("/stocks.csv")
+@admin_required
+def stocks_csv():
+    days = _days()
+    board = stock_board.load(days)
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["legume", "total"] + [f.name for f in board.farms])
+    for r in board.products:
+        w.writerow([r.label, r.total_label] + [
+            r.cells[f.ferme_id].line.qty_label if f.ferme_id in r.cells else "" for f in board.farms])
+    return Response("﻿" + buf.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": f"attachment; filename=stocks-whatsapp-{days}j.csv"})
+
+
 @bp.get("/")
 @admin_required
 def inbox():
-    try:
-        days = max(1, min(60, int(request.args.get("jours", 7))))
-    except ValueError:
-        days = 7
+    days = _days()
     farms, unmapped = relay.recent_by_farm(days)
+    in_stock = stock_board.load(days).used
     for f in farms:
         for m in f["messages"]:
             m["parsed"] = parse_list(m["body"])
+            m["in_stock"] = m["id"] in in_stock
     for m in unmapped:
         m["parsed"] = parse_list(m["body"])
     return _render("whatsapp/inbox.html", farms=farms, unmapped=unmapped, days=days,
@@ -131,7 +161,7 @@ def message_status(mid):
 @admin_required
 def farm_done(ferme_id):
     n = relay.mark_farm_done(ferme_id)
-    flash(f"{n} message{'s' if n > 1 else ''} marqué{'s' if n > 1 else ''} traité{'s' if n > 1 else ''}.",
+    flash(f"{n} message{'s' if n > 1 else ''} marqué{'s' if n > 1 else ''} comme lu{'s' if n > 1 else ''}.",
           "success")
     return redirect(request.form.get("next") or url_for("relay.inbox"))
 

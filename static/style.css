@@ -1256,6 +1256,49 @@ a.section-tab { text-decoration: none; }
 .farm-chip.is-current { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .farm-chip[hidden] { display: none; }
 .farm-pick-other { flex-basis: 100%; display: flex; gap: 6px; flex-wrap: wrap; padding-top: 6px; margin-top: 2px; border-top: 1px solid var(--border); }
+/* Stock board (WhatsApp lists → stock per farm) */
+.st-csv { margin-left: auto; }
+.st-summary { margin: -6px 0 12px; font-size: 0.875rem; color: var(--text-muted); }
+.st-summary strong { color: var(--text); font-weight: 650; }
+.st-wrap { max-height: calc(100dvh - 160px); overflow: auto; }
+@media (max-width: 640px) {
+    .st-table .row-label { min-width: 0; max-width: 130px; white-space: normal; }
+    .st-table th, .st-table td { padding: 8px 10px; }
+}
+.st-table thead th { position: sticky; top: 0; z-index: 2; vertical-align: bottom; }
+.st-table thead th.row-label { z-index: 3; }
+.st-table th.st-farm { text-transform: none; letter-spacing: 0; font-size: 0.8rem; color: var(--text-soft); }
+.st-table th.st-farm small { display: block; font-weight: 400; font-size: 0.72rem; color: var(--text-muted); }
+.st-table th.st-total-col, .st-table td.st-total-col {
+    background: var(--accent-soft); color: var(--accent);
+    border-right: 1px solid var(--border);
+}
+.st-table td.st-total-col strong { font-weight: 650; }
+.st-table td.st-total-col small { display: block; font-size: 0.72rem; font-weight: 500; opacity: 0.75; }
+.st-table th.st-total-col { min-width: 120px; }
+.st-table td.st-sold { color: var(--danger-text); font-size: 0.8rem; }
+.st-table tr.st-out td { opacity: 0.55; }
+.st-table tr.st-out td.st-total-col { background: transparent; color: var(--text-muted); }
+.st-rules { margin-top: 14px; }
+.st-rules ul { margin: 6px 0 0 18px; display: grid; gap: 4px; font-size: 0.85rem; color: var(--text-soft); max-width: 75ch; }
+.st-state { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.st-state form { display: contents; }
+.st-tag {
+    display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px;
+    border-radius: 999px; border: 1px solid var(--border);
+    font-size: 0.74rem; font-weight: 600; color: var(--text-muted);
+}
+.st-tag.is-in { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.st-tag.is-out { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning-text); }
+.st-state .btn-sm { padding: 2px 8px; font-size: 0.76rem; }
+.seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
+.seg-btn {
+    padding: 3px 9px; border: 0; border-left: 1px solid var(--border); background: var(--bg-card);
+    color: var(--text-muted); font: inherit; font-size: 0.78rem; cursor: pointer;
+}
+.seg-btn:first-of-type { border-left: 0; }
+.seg-btn:hover { color: var(--text); background: var(--bg-hover); }
+.seg-btn.is-on { background: var(--text); color: var(--bg-card); font-weight: 600; }
 .wa-farm-cell { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .wa-farm-current { padding-top: 5px; min-width: 120px; }
 @media (max-width: 860px) {

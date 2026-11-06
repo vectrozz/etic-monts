@@ -255,7 +255,7 @@ def test_inbox_maps_sender_to_farm(app, phone, migrated_db):
     page = c.get("/whatsapp/").get_data(as_text=True)
     assert farm_name in page
     assert "Batavia rouge" in page and "2 colis" in page and "Poireaux" in page
-    assert "à traiter" in page
+    assert "nouveau" in page and "dans le stock" in page
 
 
 def test_status_and_badge(app, phone, migrated_db):
@@ -287,10 +287,10 @@ def test_gaec_several_senders_one_farm(app, phone, migrated_db):
 
     page = c.get("/whatsapp/").get_data(as_text=True)
     assert page.count(f"<h2>{farm_name}</h2>") == 1, "one card per farm, whoever wrote"
-    assert "2 à traiter" in page
+    assert "2 nouveaux" in page
     for text in ("Fraises", "6 plateaux", "Rhubarbe", "3 bottes", "Paul Coteau", "Lucie Coteau"):
         assert text in page, text
-    assert "Marquer les 2 traités" in page
+    assert "Marquer les 2 comme lus" in page
 
     senders_page = c.get("/whatsapp/expediteurs").get_data(as_text=True)
     assert "Fermes et leurs membres" in senders_page and "2 membres" in senders_page
@@ -315,10 +315,41 @@ def test_messages_from_several_groups_show_their_group(app, phone, migrated_db):
     assert "<th>Groupe</th>" in table and "Fruits · EMB" in table
 
 
+def test_stock_board_from_received_lists(app, phone, migrated_db):
+    """GAEC Coteau (Lucie + Paul) posted lists: the stock adds them up, per farm and in total."""
+    c = app.test_client()
+    login_as(c, migrated_db)
+    farm_id, farm_name = query(migrated_db, "SELECT id, farmname FROM fermes WHERE name = 'lucie'")[0]
+    r = phone.send([msg("poireaux 2 colis, navets 1 colis, épinards 3 kg, rhubarbe 3 bottes", sender="Paul Coteau",
+                        ms=NOW_MS - 3_000),
+                    msg("Livraison le 12", sender="Paul Coteau", ms=NOW_MS - 2_000)])
+    assert r.get_json()["accepted"] == 2
+
+    page = c.get("/whatsapp/stocks").get_data(as_text=True)
+    assert farm_name in page and "Épinards" in page and "3 kg" in page
+    assert "Livraison" not in page, "conversation is not stock"
+    assert 'class="section-tab active" href="/whatsapp/stocks"' in page
+
+    inbox = c.get("/whatsapp/?jours=7").get_data(as_text=True)
+    assert "dans le stock" in inbox and "conversation, hors stock" in inbox and "Pas une liste" in inbox
+
+    # "Pas une liste" on the full list: it leaves the stock at once
+    full = query(migrated_db, "SELECT id FROM chat_messages WHERE body LIKE 'poireaux 2 colis, navets%%'")[0][0]
+    c.post(f"/whatsapp/messages/{full}/statut", data={"status": "ignored"})
+    assert "Épinards" not in c.get("/whatsapp/stocks").get_data(as_text=True)
+    c.post(f"/whatsapp/messages/{full}/statut", data={"status": "new"})
+
+    csv_resp = c.get("/whatsapp/stocks.csv?jours=7")
+    assert csv_resp.status_code == 200 and csv_resp.mimetype == "text/csv"
+    body = csv_resp.get_data(as_text=True)
+    assert body.startswith("﻿legume;total;") and "Épinards;3 kg;" in body
+
+
 def test_other_pages_render(app, phone, migrated_db):
     c = app.test_client()
     login_as(c, migrated_db)
-    for path in ("/whatsapp/messages", "/whatsapp/expediteurs", "/whatsapp/telephones", "/whatsapp/?jours=30"):
+    for path in ("/whatsapp/messages", "/whatsapp/expediteurs", "/whatsapp/telephones", "/whatsapp/?jours=30",
+                 "/whatsapp/stocks?jours=3", "/whatsapp/stocks?jours=abc"):
         assert c.get(path).status_code == 200, path
     assert "puce sécurisée (TEE)" in c.get("/whatsapp/telephones").get_data(as_text=True)
 
@@ -327,6 +358,7 @@ def test_producers_cannot_access(app, migrated_db):
     c = app.test_client()
     login_as(c, migrated_db, "producteur")
     assert c.get("/whatsapp/").status_code == 403
+    assert c.get("/whatsapp/stocks").status_code == 403 and c.get("/whatsapp/stocks.csv").status_code == 403
     assert c.post("/whatsapp/telephones", data={"name": "x"}).status_code == 403
     assert c.post("/whatsapp/telephones/1/lien").status_code == 403
 

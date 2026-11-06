@@ -16,8 +16,30 @@
 {% endif %}
 {%- endmacro %}
 
+{% macro stock_state(m) -%}
+<div class="st-state">
+    {% if m.status == 'ignored' %}
+    <span class="st-tag is-out">exclu du stock</span>
+    {% set to, label = 'new', 'Remettre dans le stock' %}
+    {% elif m.in_stock %}
+    <span class="st-tag is-in">{{ icon('check', 'icon-sm') }} dans le stock</span>
+    {% set to, label = 'ignored', 'Pas une liste' %}
+    {% else %}
+    <span class="st-tag">conversation, hors stock</span>
+    {% set to = none %}
+    {% endif %}
+    {% if to %}
+    <form method="post" action="{{ url_for('relay.message_status', mid=m.id) }}">
+        <input type="hidden" name="next" value="{{ request.full_path }}">
+        <input type="hidden" name="status" value="{{ to }}">
+        <button class="btn btn-ghost btn-sm" type="submit">{{ label }}</button>
+    </form>
+    {% endif %}
+</div>
+{%- endmacro %}
+
 {% block content %}
-{% with title="Listes reçues", subtitle="Les messages du groupe WhatsApp, transmis par le téléphone relais et regroupés par ferme. La dernière liste de chaque ferme est en tête." %}
+{% with title="Listes reçues", subtitle="Les messages des groupes WhatsApp, regroupés par ferme. Les listes remplissent l'onglet Stocks automatiquement, rien à recopier. « Marquer comme lu » sert seulement à savoir ce que vous avez déjà vu." %}
 {% include 'whatsapp/_header.html' %}
 {% endwith %}
 
@@ -26,6 +48,7 @@
     {% for d in (3, 7, 14, 30) %}
     <a class="campaign {% if d == days %}active{% endif %}" href="{{ url_for('relay.inbox', jours=d) }}">{{ d }} jours</a>
     {% endfor %}
+    <a class="btn btn-secondary btn-sm st-csv" href="{{ url_for('relay.stocks', jours=days) }}">{{ icon('box', 'icon-sm') }} Voir le stock</a>
 </div>
 
 {% if unmapped %}
@@ -60,16 +83,21 @@
                 <h2>{{ f.name }}</h2>
                 <span class="muted">{{ f.senders|join(', ') }}</span>
             </div>
-            {% if f.pending %}<span class="role-pill role-pending">{{ f.pending|length }} à traiter</span>{% else %}<span class="role-pill role-done">traité</span>{% endif %}
+            {% if f.pending %}<span class="role-pill role-pending">{{ f.pending|length }} nouveau{{ 'x' if f.pending|length > 1 else '' }}</span>{% else %}<span class="role-pill role-done">lu</span>{% endif %}
         </header>
         {% for m in shown %}
         <section class="wa-msg">
             <div class="wa-msg-meta"><strong>{{ m.sender_name }}</strong> <span class="muted">· {{ m.chat_title }} · {{ m.posted_at|local_dt }}</span></div>
+            {{ stock_state(m) }}
+            {% if m.in_stock %}
             {{ parsed_table(m.parsed) }}
             <details class="wa-raw">
                 <summary>Message d'origine</summary>
                 <p class="wa-body">{{ m.body }}</p>
             </details>
+            {% else %}
+            <p class="wa-body">{{ m.body }}</p>
+            {% endif %}
         </section>
         {% endfor %}
         {% if history %}
@@ -79,6 +107,7 @@
             <div class="wa-old">
                 <span class="muted">{{ old.posted_at|local_dt }} · {{ old.sender_name }} · {{ old.chat_title }}</span>
                 <p class="wa-body">{{ old.body }}</p>
+                {{ stock_state(old) }}
             </div>
             {% endfor %}
         </details>
@@ -88,13 +117,13 @@
             <form method="post" action="{{ url_for('relay.farm_done', ferme_id=f.ferme_id) }}">
                 <input type="hidden" name="next" value="{{ request.full_path }}">
                 <button class="btn btn-secondary btn-sm" type="submit">{{ icon('check', 'icon-sm') }}
-                    {% if f.pending|length > 1 %}Marquer les {{ f.pending|length }} traités{% else %}Marquer traité{% endif %}</button>
+                    {% if f.pending|length > 1 %}Marquer les {{ f.pending|length }} comme lus{% else %}Marquer comme lu{% endif %}</button>
             </form>
             {% else %}
             <form method="post" action="{{ url_for('relay.message_status', mid=shown[0].id) }}">
                 <input type="hidden" name="next" value="{{ request.full_path }}">
                 <input type="hidden" name="status" value="new">
-                <button class="btn btn-ghost btn-sm" type="submit">Remettre à traiter</button>
+                <button class="btn btn-ghost btn-sm" type="submit">Marquer non lu</button>
             </form>
             {% endif %}
         </footer>

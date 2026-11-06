@@ -5,6 +5,7 @@
     {% if subtitle %}<p class="subtitle">{{ subtitle }}</p>{% endif %}
 </div>
 <nav class="section-tabs" aria-label="WhatsApp">
+    <a class="section-tab {% if request.endpoint == 'relay.stocks' %}active{% endif %}" href="{{ url_for('relay.stocks') }}">Stocks</a>
     <a class="section-tab {% if request.endpoint == 'relay.inbox' %}active{% endif %}" href="{{ url_for('relay.inbox') }}">Listes par ferme</a>
     <a class="section-tab {% if request.endpoint == 'relay.messages' %}active{% endif %}" href="{{ url_for('relay.messages') }}">Tous les messages</a>
     <a class="section-tab {% if request.endpoint == 'relay.senders' %}active{% endif %}" href="{{ url_for('relay.senders') }}">Expéditeurs</a>

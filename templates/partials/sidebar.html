@@ -54,7 +54,9 @@
         <li class="nav-group" data-section="whatsapp">
             <button type="button" class="nav-section" aria-expanded="true">WhatsApp</button>
             <ul class="nav-items">
-                <li><a href="{{ url_for('relay.inbox') }}" class="{% if ep.startswith('relay.') %}active{% endif %}">
+                <li><a href="{{ url_for('relay.stocks') }}" class="{% if ep == 'relay.stocks' %}active{% endif %}">
+                    {{ icon('box') }} Stocks</a></li>
+                <li><a href="{{ url_for('relay.inbox') }}" class="{% if ep.startswith('relay.') and ep != 'relay.stocks' %}active{% endif %}">
                     {{ icon('chat') }} Listes reçues
                     {% if relay_new_count %}<span class="nav-badge">{{ relay_new_count }}</span>{% endif %}</a></li>
             </ul>

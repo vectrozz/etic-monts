@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from 'partials/icons.html' import icon %}
+{% block title %}Stocks WhatsApp — {{ branding.name or "Etic'Monts" }}{% endblock %}
+
+{% block content %}
+{% with title="Stocks", subtitle="Le stock de chaque ferme, calculé automatiquement à partir des listes postées dans les groupes WhatsApp : une ligne par légume, une colonne par ferme, et le total." %}
+{% include 'whatsapp/_header.html' %}
+{% endwith %}
+
+<div class="wa-toolbar">
+    <span class="muted">Listes des</span>
+    {% for d in (3, 7, 14) %}
+    <a class="campaign {% if d == days %}active{% endif %}" href="{{ url_for('relay.stocks', jours=d) }}">{{ d }} derniers jours</a>
+    {% endfor %}
+    <a class="btn btn-ghost btn-sm st-csv" href="{{ url_for('relay.stocks_csv', jours=days) }}">{{ icon('download', 'icon-sm') }} Export CSV</a>
+</div>
+
+{% if board.farms %}
+{% set available = board.products|selectattr('farms_available')|list|length %}
+{% set nfarms = board.farms|length %}
+<p class="st-summary">
+    <strong>{{ available }}</strong> légume{{ 's' if available > 1 else '' }} disponible{{ 's' if available > 1 else '' }}
+    · <strong>{{ nfarms }}</strong> ferme{{ 's' if nfarms > 1 else '' }}
+    · mis à jour {{ board.farms|map(attribute='updated_at')|max|local_dt }}
+</p>
+
+<div class="table-wrapper st-wrap">
+    <table class="st-table">
+        <thead>
+            <tr>
+                <th class="row-label">Légume</th>
+                <th class="num st-total-col">Total</th>
+                {% for f in board.farms %}
+                <th class="num st-farm" title="Liste du {{ f.list_at|local_dt if f.list_at else '—' }}{% if f.updates %} + {{ f.updates }} mise(s) à jour{% endif %}">
+                    {{ f.name }}<small>{{ f.updated_at|local_dt }}</small>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in board.products %}
+        <tr class="{% if not r.farms_available %}st-out{% endif %}">
+            <td class="row-label">{{ r.label }}{% if r.farms_available > 1 %} <span class="muted">· {{ r.farms_available }} fermes</span>{% endif %}</td>
+            <td class="num st-total-col"><strong>{{ r.headline }}</strong>{% if r.unknown_note %}<small>{{ r.unknown_note }}</small>{% endif %}</td>
+            {% for f in board.farms %}
+            {% set e = r.cells.get(f.ferme_id) %}
+            <td class="num {% if e and not e.available %}st-sold{% elif e and e.line.qty is none %}muted{% endif %}">
+                {% if e %}{{ e.line.qty_label if e.line.qty is not none or e.line.sold_out else 'dispo' }}{% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<details class="wa-raw st-rules">
+    <summary>Comment le stock est calculé</summary>
+    <ul>
+        <li>Un message de <strong>3 produits ou plus</strong> est la liste complète de la ferme : il <strong>remplace</strong> sa liste précédente.</li>
+        <li>Un message plus court avec des quantités (« poireaux 3 colis ») <strong>met à jour</strong> seulement les produits cités.</li>
+        <li>« plus de poireaux », « carottes épuisées », « fini les choux » : le produit passe <strong>épuisé</strong> pour cette ferme.</li>
+        <li>Les messages sans quantité et de moins de 3 produits sont considérés comme de la conversation et ignorés.</li>
+        <li>Un message mal compris ? Dans <a href="{{ url_for('relay.inbox', jours=days) }}">Listes par ferme</a>, bouton <strong>Pas une liste</strong> : il sort du stock.</li>
+        <li>Les écritures d'un même légume sont regroupées (poireaux = poireau, choux = chou…). Les quantités ne s'additionnent que dans la même unité.</li>
+    </ul>
+</details>
+{% else %}
+<div class="empty-state">
+    <h3>Aucune liste sur les {{ days }} derniers jours</h3>
+    <p>Le stock se remplit dès qu'un expéditeur <strong>associé à une ferme</strong> poste une liste (« poireaux 5 colis, carottes 4 colis… »). Associez les expéditeurs dans <a href="{{ url_for('relay.inbox', jours=days) }}">Listes par ferme</a>.</p>
+</div>
+{% endif %}
+{% endblock %}
