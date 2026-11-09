@@ -119,7 +119,7 @@ def stocks_csv():
     w.writerow(["legume", "total"] + [f.name for f in board.farms])
     for r in board.products:
         w.writerow([r.label, r.total_label] + [
-            r.cells[f.ferme_id].line.qty_label if f.ferme_id in r.cells else "" for f in board.farms])
+            r.cell_label(r.cells[f.ferme_id]) if f.ferme_id in r.cells else "" for f in board.farms])
     return Response("﻿" + buf.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition": f"attachment; filename=stocks-whatsapp-{days}j.csv"})
 

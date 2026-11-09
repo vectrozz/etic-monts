@@ -51,19 +51,31 @@ class FarmStock:
 
 @dataclass
 class ProductRow:
+    """A vegetable always comes in one unit: '2' and '2 colis' are the same quantity.
+    The total adds every quantity up and shows the vegetable's usual unit."""
     key: str
     label: str
-    cells: dict[int, Entry]                    # ferme_id → entry
-    totals: dict[str, float]                   # unit ('' = no unit) → summed quantity
-    farms_available: int
-    farms_unknown_qty: int                     # available but no quantity given
+    unit: str | None                           # most written unit for this vegetable
+    cells: dict[int, Entry] = field(default_factory=dict)   # ferme_id → entry
+    qty_sum: float | None = None               # None: no farm gave a quantity
+    farms_available: int = 0
+    farms_unknown_qty: int = 0                 # available but no quantity given
+
+    def _label(self, qty: float) -> str:
+        return ParsedLine(raw="", kind="item", qty=qty, unit=self.unit).qty_label
+
+    def cell_label(self, e: Entry) -> str:
+        """'2' written by a farm reads '2 colis' when the vegetable is counted in colis."""
+        if e.line.sold_out:
+            return "épuisé"
+        if e.line.qty is None:
+            return "dispo"
+        return self._label(e.line.qty)
 
     @property
     def qty_total(self) -> str:
-        """Summed quantities, one per unit: '12 colis + 5 kg' ('' when none was given)."""
-        return " + ".join(
-            ParsedLine(raw="", kind="item", qty=q, unit=u or None).qty_label
-            for u, q in sorted(self.totals.items(), key=lambda kv: (kv[0] == "", kv[0])))
+        """Summed quantity in the vegetable's unit: '12 colis' ('' when none was given)."""
+        return "" if self.qty_sum is None else self._label(self.qty_sum)
 
     @property
     def headline(self) -> str:
@@ -79,7 +91,7 @@ class ProductRow:
 
     @property
     def total_label(self) -> str:
-        """'12 colis + 5 kg', '3 colis (+ 1 ferme sans quantité)', 'dispo (1 ferme, quantité non précisée)'."""
+        """'12 colis', '3 colis (1 ferme sans quantité)', 'dispo (1 ferme, quantité non précisée)', 'épuisé'."""
         return f"{self.headline} ({self.unknown_note.removeprefix('+ ')})" if self.unknown_note else self.headline
 
 
@@ -120,6 +132,7 @@ def compute(messages: list[dict]) -> Board:
 
     farms: dict[int, FarmStock] = {}
     labels: dict[str, Counter] = defaultdict(Counter)
+    units: dict[str, Counter] = defaultdict(Counter)
     used: set[int] = set()
     for m, items in parsed:
         farm = farms.get(m["ferme_id"])
@@ -146,13 +159,18 @@ def compute(messages: list[dict]) -> Board:
                 continue                                  # "plus de radis" in a list without radis
             farm.items[_key(p)] = Entry(p.product, p, m["posted_at"], m["id"])
             labels[_key(p)][p.product] += 1
+            if p.unit:
+                units[_key(p)][p.unit] += 1
         farm.updated_at = m["posted_at"]
         used.add(m["id"])
 
     rows: dict[str, ProductRow] = {}
     for farm in farms.values():
         for key, e in farm.items.items():
-            row = rows.setdefault(key, ProductRow(key, labels[key].most_common(1)[0][0], {}, {}, 0, 0))
+            row = rows.get(key)
+            if row is None:
+                unit = units[key].most_common(1)[0][0] if units[key] else None
+                row = rows[key] = ProductRow(key, labels[key].most_common(1)[0][0], unit)
             row.cells[farm.ferme_id] = e
             if not e.available:
                 continue
@@ -160,8 +178,7 @@ def compute(messages: list[dict]) -> Board:
             if e.line.qty is None:
                 row.farms_unknown_qty += 1
             else:
-                unit = e.line.unit or ""
-                row.totals[unit] = row.totals.get(unit, 0) + e.line.qty
+                row.qty_sum = (row.qty_sum or 0) + e.line.qty
 
     products = sorted(rows.values(), key=lambda r: (r.farms_available == 0, r.key))   # key: accent-free
     farm_list = sorted((f for f in farms.values() if f.items), key=lambda f: product_key(f.name))

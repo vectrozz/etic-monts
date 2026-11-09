@@ -45,7 +45,7 @@
             {% for f in board.farms %}
             {% set e = r.cells.get(f.ferme_id) %}
             <td class="num {% if e and not e.available %}st-sold{% elif e and e.line.qty is none %}muted{% endif %}">
-                {% if e %}{{ e.line.qty_label if e.line.qty is not none or e.line.sold_out else 'dispo' }}{% endif %}
+                {% if e %}{{ r.cell_label(e) }}{% endif %}
             </td>
             {% endfor %}
         </tr>
@@ -62,7 +62,8 @@
         <li>« plus de poireaux », « carottes épuisées », « fini les choux » : le produit passe <strong>épuisé</strong> pour cette ferme.</li>
         <li>Les messages sans quantité et de moins de 3 produits sont considérés comme de la conversation et ignorés.</li>
         <li>Un message mal compris ? Dans <a href="{{ url_for('relay.inbox', jours=days) }}">Listes par ferme</a>, bouton <strong>Pas une liste</strong> : il sort du stock.</li>
-        <li>Les écritures d'un même légume sont regroupées (poireaux = poireau, choux = chou…). Les quantités ne s'additionnent que dans la même unité.</li>
+        <li>Les écritures d'un même légume sont regroupées (poireaux = poireau, choux = chou…).</li>
+        <li>Un légume se compte toujours dans la même unité : « poireaux 2 » et « poireaux 2 colis » valent tous les deux 2 colis. L'unité affichée est celle que les fermes écrivent le plus souvent pour ce légume.</li>
     </ul>
 </details>
 {% else %}
